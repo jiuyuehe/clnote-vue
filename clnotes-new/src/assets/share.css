@@ -1,0 +1,72 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #f9f9f9;
+}
+
+.share {
+    width: 1020px;
+
+    padding-top: 60px;
+
+    min-height: 500px;
+    margin: 0 auto;
+}
+
+.share-main {
+    width: 760px;
+    border: 1px solid #f3f3f3;
+    box-shadow: 0 1px 10px 2px rgba(0, 0, 0, .06);
+    background-color: white;
+}
+
+.share-code {
+    float: right;
+
+    border: 1px solid #f3f3f3;
+    box-shadow: 0 1px 10px 2px rgba(0, 0, 0, .06);
+}
+
+.share-name {
+    padding-top: 20px;
+    font-size: 24px;
+    text-align: center;
+    line-height: 48px;
+    color: #474747;
+}
+
+.ul-list li {
+    display: inline-block;
+    width: 45%;
+    padding-bottom: 30px;
+    color: lightgrey;
+    text-align: center;
+
+}
+
+.share-content {
+    padding: 20px 40px;
+    color: #474747;
+    word-wrap: break-word;
+}
+
+.share-content table {
+    border: 1px solid lightgrey;
+}
+
+.share-content table th, .share-content table td {
+    border-bottom: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    text-align: center;
+}
+
+.share-content blockquote {
+    display: block;
+    border-left: 8px solid #d0e5f2;
+    padding: 5px 10px;
+    margin: 10px 0;
+    line-height: 1.4;
+    font-size: 100%;
+    background-color: #f1f1f1;
+}

@@ -52,7 +52,7 @@
                 @visible-change="(visible) => showMenu(item, visible)"
               >
                 <span class="ant-dropdown-link note-book-btn" @click.prevent>
-                  <el-icon><CaretDown /></el-icon>
+                  <el-icon><ArrowDownBold /></el-icon>
                 </span>
                 <template #dropdown>
                   <el-dropdown-menu>
@@ -92,7 +92,7 @@ import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useNotesStore } from '@/store'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Plus, ArrowDown, Document, Notebook, CaretDown } from '@element-plus/icons-vue'
+import { Plus, ArrowDown, Document, Notebook, ArrowDownBold } from '@element-plus/icons-vue'
 import { sysHandler } from '@/utils/sysHandler'
 
 const router = useRouter()

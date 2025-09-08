@@ -1,0 +1,235 @@
+html, body, #root, .App {
+    height: 100%;
+    overflow: hidden;
+}
+
+a {
+    color: #686868;
+    text-decoration: none;
+}
+
+a:focus {
+    text-decoration: none;
+
+}
+
+a:visited {
+
+    text-decoration: none;
+}
+
+a:active {
+    text-decoration: none;
+}
+
+.App {
+    position: relative;
+}
+
+.nav {
+    position: relative;
+    height: 100%;
+}
+
+.note-over {
+    position: absolute;
+    overflow-y: auto;
+    top: 130px;
+    bottom: 0;
+    right: 0;
+    left: 0;
+}
+
+.nav-list {
+    padding: 10px 8px;
+}
+
+.note-active {
+    background-color: #e4edf8;
+    color: white;
+}
+
+.note-book-btn {
+    float: right;
+    display: none;
+    color: lightgrey;
+    padding: 0 4px;
+}
+
+.nav-list:hover {
+    background-color: #e4edf8;
+}
+
+nav-list:active {
+    background-color: #398dee;
+    color: white;
+}
+
+.active {
+    background-color: #398dee;
+    color: white;
+}
+
+.notebook-nav {
+    display: block;
+    padding: 10px;
+}
+
+.notebook-nav a {
+    text-decoration: none;
+}
+
+.notebook-nav-h:hover {
+    background-color: #e4edf8;
+}
+
+.notebook-nav:hover .note-book-btn {
+    display: block;
+}
+
+.nav-add {
+    line-height: 36px;
+    font-size: 18px;
+}
+
+.notes-list {
+    float: left;
+    height: 100%;
+    width: 300px;
+    background-color: #e4edf8;
+}
+
+.note-item {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.note-item a {
+    display: block;
+    text-decoration: none;
+    padding: 8px 4px;
+}
+
+.note-item:hover {
+    background-color: #e4edf8;
+
+}
+
+.note-item > a {
+
+    text-decoration: none;
+    color: darkgray;
+}
+
+.note-name {
+    font-size: 14px;
+    color: #686868;
+    font-weight: 500;
+}
+
+.note-name-opt {
+    padding: 2px 4px;
+    float: right;
+    display: none;
+}
+
+.note-name:hover .note-name-opt {
+
+    display: inline-block;
+
+}
+
+.note-desc {
+    word-break: break-all;
+    word-wrap: break-word;
+    padding: 10px 0;
+    min-height: 20px;
+}
+
+.book-opt {
+    position: relative;
+    height: 56px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px #fff;
+    padding: 10px 0;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.note-opt {
+    position: relative;
+    height: 56px;
+    line-height: 36px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px #fff;
+    padding: 10px 0;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.note-info {
+    position: absolute;
+    background-color: white;
+    left: 540px;
+    height: 100%;
+    right: 0;
+    overflow: auto;
+}
+
+.note-btn {
+    margin: 2px 10px;
+}
+
+.title-input {
+    margin-top: 16px;
+    width: 35%;
+    height: 40px;
+    font-size: 18px;
+    padding: 0 16px;
+    border: none;
+}
+
+.title-input:hover {
+    border-bottom: 1px solid lightgray;
+}
+
+.title-input:focus {
+    border-bottom: 1px solid lightgray;
+    outline-color: white;
+
+}
+
+.w-e-text-container {
+    min-height: 300px;
+}
+
+#editTool {
+
+}
+
+.w-e-toolbar {
+    border-bottom: 1px solid lightgray;
+    padding: 4px 0;
+}
+
+#editContent {
+    max-height: 800px;
+    height: 500px;
+}
+
+#editContent a {
+    color: #0e77ca;
+}
+
+#editContent img {
+    max-width: 500px;
+    max-height: 500px;
+}
+
+@keyframes App-logo-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}

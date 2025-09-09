@@ -1,119 +1,77 @@
 <template>
   <div class="nav">
-    <div class="book-opt">
+    <!-- Top section: App name (120px height) -->
+    <div class="app-header">
+      <h3 class="app-title">云笔记</h3>
+    </div>
+
+    <!-- Bottom section: Action buttons and navigation -->
+    <div class="nav-content">
+      <!-- Action buttons -->
       <div class="action-buttons">
         <el-button 
           type="primary" 
-          size="small" 
+          size="default" 
           :icon="Plus" 
           @click="newNote"
-          class="action-btn"
+          class="nav-button"
         >
           新建笔记
         </el-button>
         <el-button 
           type="default" 
-          size="small" 
+          size="default" 
           :icon="Notebook" 
           @click="showModal()"
-          class="action-btn"
+          class="nav-button"
         >
           新建笔记本
         </el-button>
         <el-button 
           type="default" 
-          size="small" 
-          :icon="Search" 
-          @click="toggleSearch"
-          class="action-btn"
+          size="default" 
+          :icon="Share" 
+          @click="goToShare"
+          class="nav-button"
         >
-          搜索
+          我的分享
         </el-button>
         <el-button 
           type="default" 
-          size="small" 
-          :icon="Share" 
-          @click="showShareDialog"
-          class="action-btn"
+          size="default" 
+          :icon="Search" 
+          @click="showSearchModal"
+          class="nav-button"
         >
-          分享
+          搜索笔记
         </el-button>
       </div>
-      
-      <!-- 搜索输入框 -->
-      <div v-show="showSearchInput" class="search-container">
-        <el-input
-          v-model="searchKeyword"
-          placeholder="搜索笔记..."
-          :prefix-icon="Search"
-          @input="handleSearch"
-          @keyup.enter="handleSearch"
-          clearable
-        />
-      </div>
-    </div>
 
-    <ul>
-      <li>
-        <router-link to="/share" class="notebook-nav" active-class="active">
-          <el-icon><Document /></el-icon>
-          我的分享
-        </router-link>
-      </li>
-
-      <li>
-        <div class="nav-list">
-          <el-icon><Collection /></el-icon><span> 分类</span>
+      <!-- Notebook list -->
+      <div class="notebook-section">
+        <div class="section-title">
+          <el-icon><Notebook /></el-icon>
+          <span>我的笔记本</span>
         </div>
-        <ul class="category-list">
-          <li 
-            v-for="category in categories" 
-            :key="category.id" 
-            class="category-item"
-            :class="{ active: selectedCategory === category.id }"
-            @click="selectCategory(category.id)"
-          >
-            <div class="category-content">
-              <div 
-                class="category-color" 
-                :style="{ backgroundColor: category.color }"
-              ></div>
-              <span>{{ category.name }}</span>
-            </div>
-          </li>
-        </ul>
-      </li>
-
-      <li>
-        <div class="nav-list">
-          <el-icon><Notebook /></el-icon><span> 我的笔记本</span>
-        </div>
-        <ul class="note-over">
-          <li v-for="item in notebooks" :key="item.noteBookId" class="notebook-nav-h">
+        <ul class="notebook-list">
+          <li v-for="item in notebooks" :key="item.noteBookId" class="notebook-item">
             <router-link
               :to="`/loading/${item.noteBookId}`"
               active-class="active"
-              :class="['notebook-nav', { active: isActive(item) }]"
-              class="notebook-nav"
+              :class="['notebook-link', { active: isActive(item) }]"
             >
-              &nbsp; 
-              <img 
-                width="18" 
-                height="18" 
-                style="position: relative; top: 4px" 
-                src="@/assets/note_yellow-min.png" 
-                alt=""
-              />
-              &nbsp; {{ item.noteBookName }} 
-              <span v-if="item.noteCount > 0">({{ item.noteCount }})</span>
+              <el-icon><Notebook /></el-icon>
+              <span class="notebook-name">{{ item.noteBookName }}</span>
+              <span v-if="item.noteCount > 0" class="note-count">({{ item.noteCount }})</span>
 
               <el-dropdown
                 @command="(command) => handleNoteBookCommand(command, item)"
                 trigger="click"
-                @visible-change="(visible) => showMenu(item, visible)"
+                class="notebook-dropdown"
+                @click.stop
               >
-                <span class="ant-dropdown-link note-book-btn" @click.prevent>
-                  <el-icon><ArrowDownBold /></el-icon>
+                <span class="dropdown-trigger">
+                  <el-icon><MoreFilled /></el-icon>
                 </span>
                 <template #dropdown>
                   <el-dropdown-menu>
@@ -125,11 +83,11 @@
             </router-link>
           </li>
         </ul>
-      </li>
-    </ul>
+      </div>
+    </div>
 
     <!-- 新建笔记本对话框 -->
-    <el-dialog v-model="visible" title="新建笔记本" width="500px">
+    <el-dialog v-model="visible" title="新建笔记本" width="400px">
       <el-input
         v-model="bookName"
         size="large"
@@ -146,11 +104,46 @@
       </template>
     </el-dialog>
 
-    <!-- 分享对话框 -->
-    <ShareDialog
-      v-model="showShareModal"
-      @shared="handleShared"
-    />
+    <!-- 全屏搜索对话框 -->
+    <el-dialog 
+      v-model="showSearchDialog" 
+      title="搜索笔记" 
+      :fullscreen="true"
+      class="search-dialog"
+    >
+      <div class="search-content">
+        <el-input
+          v-model="searchKeyword"
+          placeholder="请输入笔记名称或内容关键词..."
+          :prefix-icon="Search"
+          size="large"
+          @input="handleSearch"
+          @keyup.enter="handleSearch"
+          clearable
+          class="search-input"
+        />
+        
+        <div v-if="searchResults.length > 0" class="search-results">
+          <div class="results-header">搜索结果 ({{ searchResults.length }})</div>
+          <div 
+            v-for="note in searchResults" 
+            :key="note.noteId"
+            class="search-result-item"
+            @click="selectSearchResult(note)"
+          >
+            <div class="result-title">{{ note.noteName }}</div>
+            <div class="result-info">
+              <span class="result-notebook">{{ note.noteBookName }}</span>
+              <span class="result-date">{{ formatDate(note.updateTime) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="searchKeyword && hasSearched" class="no-results">
+          <el-empty description="未找到相关笔记" />
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -159,9 +152,8 @@ import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useNotesStore } from '@/store'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Plus, ArrowDown, Document, Notebook, ArrowDownBold, Search, Share, Collection } from '@element-plus/icons-vue'
+import { Plus, Notebook, Search, Share, MoreFilled } from '@element-plus/icons-vue'
 import { sysHandler } from '@/utils/sysHandler'
-import ShareDialog from './ShareDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -172,24 +164,15 @@ const visible = ref(false)
 const bookName = ref('')
 const renameId = ref(undefined)
 const bookNameInput = ref(null)
-const showSearchInput = ref(false)
+const showSearchDialog = ref(false)
 const searchKeyword = ref('')
-const showShareModal = ref(false)
+const searchResults = ref([])
+const hasSearched = ref(false)
 
 // 计算属性
 const notebooks = computed(() => notesStore.notebooks)
-const categories = computed(() => notesStore.categories)
-const selectedCategory = computed(() => notesStore.selectedCategory)
 
 // 方法
-const handleDropdownCommand = (command) => {
-  if (command === 'newNote') {
-    newNote()
-  } else if (command === 'newNotebook') {
-    showModal()
-  }
-}
-
 const handleNoteBookCommand = (command, item) => {
   if (command === 'rename') {
     reNameBook(item)
@@ -310,33 +293,66 @@ const reNameBook = (item) => {
   showModal(item)
 }
 
-const showMenu = (item, visible) => {
-  console.log('显示菜单:', visible, item)
+const goToShare = () => {
+  router.push('/share')
 }
 
-const toggleSearch = () => {
-  showSearchInput.value = !showSearchInput.value
-  if (!showSearchInput.value) {
-    searchKeyword.value = ''
+const showSearchModal = () => {
+  showSearchDialog.value = true
+  searchKeyword.value = ''
+  searchResults.value = []
+  hasSearched.value = false
+}
+
+const handleSearch = async () => {
+  if (!searchKeyword.value.trim()) {
+    searchResults.value = []
+    hasSearched.value = false
+    return
+  }
+
+  hasSearched.value = true
+  
+  try {
+    // TODO: 实现实际的搜索API调用
+    // 这里先模拟搜索结果
+    const allNotes = []
+    
+    // 获取所有笔记本的笔记
+    for (const notebook of notebooks.value) {
+      try {
+        await notesStore.getNotesByBook({ nbi: notebook.noteBookId })
+        const notesInBook = notesStore.noteList.map(note => ({
+          ...note,
+          noteBookName: notebook.noteBookName
+        }))
+        allNotes.push(...notesInBook)
+      } catch (err) {
+        console.error('获取笔记失败:', err)
+      }
+    }
+
+    // 过滤包含关键词的笔记
+    searchResults.value = allNotes.filter(note => 
+      note.noteName.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
+      (note.noteContent && note.noteContent.toLowerCase().includes(searchKeyword.value.toLowerCase()))
+    )
+  } catch (err) {
+    console.error('搜索失败:', err)
+    ElMessage.error('搜索失败')
   }
 }
 
-const handleSearch = () => {
-  // TODO: Implement search functionality
-  console.log('搜索关键词:', searchKeyword.value)
+const selectSearchResult = (note) => {
+  // 跳转到选中的笔记
+  router.push(`/book/${note.noteBookId}/note/${note.noteId}`)
+  showSearchDialog.value = false
 }
 
-const showShareDialog = () => {
-  showShareModal.value = true
-}
-
-const handleShared = (shareData) => {
-  console.log('笔记分享成功:', shareData)
-  // 可以在这里添加成功后的处理逻辑
-}
-
-const selectCategory = (categoryId) => {
-  notesStore.setSelectedCategory(selectedCategory.value === categoryId ? null : categoryId)
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-CN')
 }
 
 onMounted(() => {
@@ -346,164 +362,228 @@ onMounted(() => {
 
 <style scoped>
 .nav {
-  padding: 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
 }
 
-.book-opt {
+/* Top section: App name (120px height) */
+.app-header {
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid #e4e7ed;
+  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+}
+
+.app-title {
+  margin: 0;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Bottom section: Navigation content */
+.nav-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* Action buttons */
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 24px;
 }
 
-.action-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
+.nav-button {
+  width: 100%;
+  justify-content: flex-start;
+  height: 36px;
+  border-radius: 6px;
+  font-size: 14px;
 }
 
-.action-btn {
-  flex: 1;
-  min-width: 80px;
-  border-radius: 8px;
-  font-weight: 500;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.nav-button.el-button--primary {
+  background-color: #409eff;
+  border-color: #409eff;
 }
 
-.action-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+.nav-button.el-button--default {
+  background-color: #f5f7fa;
+  border-color: #dcdfe6;
+  color: #606266;
 }
 
-.search-container {
-  margin-top: 12px;
-  animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.nav-add {
+.nav-button.el-button--default:hover {
+  background-color: #ecf5ff;
+  border-color: #409eff;
   color: #409eff;
-  cursor: pointer;
-  text-decoration: none;
 }
 
-.nav-add:hover {
-  color: #66b1ff;
+/* Notebook section */
+.notebook-section {
+  margin-top: 16px;
 }
 
-ul {
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #606266;
+  background-color: #f5f7fa;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.notebook-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-li {
-  margin-bottom: 5px;
-}
-
-.nav-list {
-  padding: 12px 16px;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 600;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.notebook-nav {
-  display: block;
-  padding: 12px 16px;
-  color: rgba(255, 255, 255, 0.8);
-  text-decoration: none;
-  border-radius: 8px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
+.notebook-item {
   margin-bottom: 4px;
-  backdrop-filter: blur(10px);
 }
 
-.notebook-nav:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: white;
-  transform: translateX(4px);
-}
-
-.notebook-nav.active {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.note-over {
-  padding-left: 20px;
-}
-
-.notebook-nav-h {
+.notebook-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  color: #606266;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.3s ease;
   position: relative;
 }
 
-.note-book-btn {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  transition: opacity 0.3s;
+.notebook-link:hover {
+  background-color: #f5f7fa;
+  color: #409eff;
 }
 
-.notebook-nav-h:hover .note-book-btn {
+.notebook-link.active {
+  background-color: #ecf5ff;
+  color: #409eff;
+  border-left: 3px solid #409eff;
+}
+
+.notebook-name {
+  flex: 1;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-count {
+  font-size: 12px;
+  color: #909399;
+}
+
+.notebook-dropdown {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.notebook-item:hover .notebook-dropdown {
   opacity: 1;
 }
 
-.el-dropdown-link {
+.dropdown-trigger {
+  padding: 2px;
+  border-radius: 4px;
   cursor: pointer;
+  color: #909399;
 }
 
-.category-list {
-  padding-left: 20px;
+.dropdown-trigger:hover {
+  background-color: #e4e7ed;
+  color: #606266;
 }
 
-.category-item {
-  padding: 8px 12px;
+/* Search dialog styles */
+.search-dialog :deep(.el-dialog__body) {
+  padding: 40px;
+}
+
+.search-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.search-input {
+  margin-bottom: 24px;
+}
+
+.search-input :deep(.el-input__wrapper) {
   border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.search-results {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.results-header {
+  padding: 16px 20px;
+  background-color: #f5f7fa;
+  font-weight: 600;
+  color: #606266;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.search-result-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f5f7fa;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-bottom: 4px;
-  color: rgba(255, 255, 255, 0.8);
+  transition: background-color 0.3s ease;
 }
 
-.category-item:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: white;
-  transform: translateX(4px);
+.search-result-item:hover {
+  background-color: #ecf5ff;
 }
 
-.category-item.active {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+.search-result-item:last-child {
+  border-bottom: none;
 }
 
-.category-content {
+.result-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 6px;
+}
+
+.result-info {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  font-size: 12px;
+  color: #909399;
 }
 
-.category-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+.result-notebook {
+  background-color: #e4e7ed;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #606266;
+}
+
+.no-results {
+  padding: 40px;
+  text-align: center;
 }
 </style>

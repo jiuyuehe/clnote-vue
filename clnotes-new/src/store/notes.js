@@ -9,7 +9,15 @@ export const useNotesStore = defineStore('notes', {
     selectBook: undefined,
     noteDetail: undefined,
     shareNoteList: [],
-    lockEdit: false
+    lockEdit: false,
+    categories: [
+      { id: 1, name: '工作', color: '#409eff' },
+      { id: 2, name: '学习', color: '#67c23a' },
+      { id: 3, name: '生活', color: '#e6a23c' },
+      { id: 4, name: '项目', color: '#f56c6c' },
+      { id: 5, name: '灵感', color: '#9c27b0' }
+    ],
+    selectedCategory: null
   }),
 
   actions: {
@@ -176,7 +184,12 @@ export const useNotesStore = defineStore('notes', {
         return await createFetch({
           url: '/note/share',
           method: 'post',
-          body: params
+          body: {
+            noteId: params.noteId,
+            accessPermission: params.accessPermission || 'readonly',
+            shareScope: params.shareScope || 'public',
+            privateEmails: params.privateEmails || ''
+          }
         })
       } catch (err) {
         console.log("shareNote:", err)
@@ -213,6 +226,18 @@ export const useNotesStore = defineStore('notes', {
 
     setShareNotesList(list) {
       this.shareNoteList = list
+    },
+
+    setSelectedCategory(categoryId) {
+      this.selectedCategory = categoryId
+    },
+
+    addCategory(category) {
+      this.categories.push({
+        id: Date.now(),
+        name: category.name,
+        color: category.color || '#409eff'
+      })
     },
 
     // 分享的笔记详情获取

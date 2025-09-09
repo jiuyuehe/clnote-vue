@@ -1,18 +1,22 @@
 <template>
   <div class="book-nav">
-    <el-container>
-      <el-aside width="250px" style="border-right: 1px solid #dcdfe6;">
-        <div class="note-list">
-          <el-input
-            v-model="searchText"
-            placeholder="搜索笔记..."
-            :prefix-icon="Search"
-            style="margin-bottom: 10px;"
-          />
+    <el-container direction="vertical" style="height: 100%;">
+      <!-- Left sidebar: Note list (250px width) -->
+      <el-container>
+        <el-aside width="250px" class="note-list-aside">
+          <div class="note-list-header">
+            <el-input
+              v-model="searchText"
+              placeholder="搜索笔记..."
+              :prefix-icon="Search"
+              clearable
+              size="small"
+            />
+          </div>
           
           <div class="note-items">
             <div
-              v-for="note in noteList"
+              v-for="note in filteredNoteList"
               :key="note.noteId"
               class="note-item"
               :class="{ active: selectedNoteId === note.noteId }"
@@ -22,53 +26,73 @@
               <div class="note-date">{{ formatDate(note.updateTime) }}</div>
             </div>
           </div>
-        </div>
-      </el-aside>
-      
-      <el-main>
-        <div v-if="selectedNote" class="note-editor">
-          <div class="note-header">
-            <el-input
-              v-model="selectedNote.noteName"
-              class="note-title-input"
-              @blur="updateNoteTitle"
-            />
-            <div class="note-actions">
-              <el-button 
-                type="primary" 
-                size="small" 
-                :icon="Share" 
-                @click="showShareDialog"
-                class="share-btn"
-              >
-                分享
-              </el-button>
-              <el-dropdown @command="handleNoteAction" trigger="click">
-                <el-button size="small" :icon="MoreFilled" class="more-btn">
-                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+        </el-aside>
+        
+        <!-- Main content area -->
+        <el-main class="note-main">
+          <div v-if="selectedNote" class="note-editor">
+            <!-- Upper section: Note title and toolbar -->
+            <div class="note-header">
+              <div class="title-section">
+                <el-input
+                  v-model="selectedNote.noteName"
+                  class="note-title-input"
+                  @blur="updateNoteTitle"
+                  @keyup.enter="updateNoteTitle"
+                  placeholder="未命名笔记"
+                />
+              </div>
+              <div class="toolbar-section">
+                <el-button 
+                  type="primary" 
+                  size="small" 
+                  :icon="Share" 
+                  @click="showShareDialog"
+                  class="toolbar-btn"
+                >
+                  分享
                 </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="export">导出笔记</el-dropdown-item>
-                    <el-dropdown-item command="delete" divided>删除笔记</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+                <el-button 
+                  type="default" 
+                  size="small" 
+                  :icon="Check"
+                  class="toolbar-btn auto-save-btn"
+                  :disabled="true"
+                >
+                  自动保存
+                </el-button>
+                <el-dropdown @command="handleNoteAction" trigger="click">
+                  <el-button size="small" type="default" class="toolbar-btn">
+                    导出
+                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="export-md">导出为 Markdown</el-dropdown-item>
+                      <el-dropdown-item command="export-txt">导出为文本</el-dropdown-item>
+                      <el-dropdown-item command="export-html">导出为 HTML</el-dropdown-item>
+                      <el-dropdown-item divided command="delete">删除笔记</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+            </div>
+            
+            <!-- Lower section: Rich text editor -->
+            <div class="editor-container">
+              <WangEditor
+                v-model="selectedNote.noteContent"
+                :onTextChange="handleTextChange"
+                :onImageUpdate="handleImageUpdate"
+                ref="editorRef"
+              />
             </div>
           </div>
-          <div class="editor-container">
-            <WangEditor
-              v-model="selectedNote.noteContent"
-              :onTextChange="handleTextChange"
-              :onImageUpdate="handleImageUpdate"
-              ref="editorRef"
-            />
+          <div v-else class="no-note-selected">
+            <el-empty description="请选择一个笔记开始编辑" />
           </div>
-        </div>
-        <div v-else class="no-note-selected">
-          <el-empty description="请选择一个笔记开始编辑" />
-        </div>
-      </el-main>
+        </el-main>
+      </el-container>
     </el-container>
 
     <!-- 分享对话框 -->
@@ -84,11 +108,10 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useNotesStore } from '@/store'
-import { Search, Share, MoreFilled, ArrowDown } from '@element-plus/icons-vue'
+import { Search, Share, ArrowDown, Check } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import WangEditor from './WangEditor.vue'
 import ShareDialog from './ShareDialog.vue'
-import { exportNote as exportNoteUtil, exportFormats } from '@/utils/exportUtils'
 
 const route = useRoute()
 const router = useRouter()
@@ -103,10 +126,24 @@ let autoSaveTimer = null
 const noteList = computed(() => notesStore.noteList)
 const selectedNote = computed(() => notesStore.noteDetail)
 
+// 过滤笔记列表
+const filteredNoteList = computed(() => {
+  if (!searchText.value.trim()) {
+    return noteList.value
+  }
+  return noteList.value.filter(note => 
+    note.noteName.toLowerCase().includes(searchText.value.toLowerCase())
+  )
+})
+
 const selectNote = async (note) => {
   selectedNoteId.value = note.noteId
   try {
     await notesStore.getNoteDetail({ noteId: note.noteId })
+    // 更新路由但不重新加载组件
+    if (route.params.noteId !== note.noteId.toString()) {
+      router.replace(`/book/${route.params.nbi}/note/${note.noteId}`)
+    }
   } catch (err) {
     console.error('获取笔记详情失败:', err)
   }
@@ -123,8 +160,10 @@ const updateNoteTitle = async () => {
         noteId: selectedNote.value.noteId,
         noteName: selectedNote.value.noteName
       })
+      ElMessage.success('标题已保存')
     } catch (err) {
       console.error('更新笔记标题失败:', err)
+      ElMessage.error('保存标题失败')
     }
   }
 }
@@ -132,7 +171,10 @@ const updateNoteTitle = async () => {
 const formatDate = (dateString) => {
   if (!dateString) return ''
   const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN')
+  return date.toLocaleDateString('zh-CN', {
+    month: 'short',
+    day: 'numeric'
+  })
 }
 
 // 处理文本变化，实现自动保存
@@ -149,6 +191,7 @@ const handleTextChange = () => {
           noteContent: selectedNote.value.noteContent
         }, 'update')
         console.log('自动保存成功')
+        // 可以在这里显示一个简短的保存提示
       } catch (err) {
         console.error('自动保存失败:', err)
       }
@@ -176,8 +219,14 @@ const handleNoteAction = async (command) => {
   }
 
   switch (command) {
-    case 'export':
-      await exportNote()
+    case 'export-md':
+      await exportNote('markdown')
+      break
+    case 'export-txt':
+      await exportNote('txt')
+      break
+    case 'export-html':
+      await exportNote('html')
       break
     case 'delete':
       await deleteNote()
@@ -187,40 +236,76 @@ const handleNoteAction = async (command) => {
   }
 }
 
-const exportNote = async () => {
+const exportNote = async (format) => {
   try {
     if (!selectedNote.value) {
       ElMessage.warning('请先选择一个笔记')
       return
     }
 
-    // Show export format selection
-    const { value: format } = await ElMessageBox.prompt(
-      '请选择导出格式',
-      '导出笔记',
-      {
-        confirmButtonText: '导出',
-        cancelButtonText: '取消',
-        inputType: 'select',
-        inputOptions: {
-          [exportFormats.MARKDOWN]: 'Markdown (.md)',
-          [exportFormats.TXT]: '纯文本 (.txt)',
-          [exportFormats.HTML]: 'HTML (.html)',
-          [exportFormats.JSON]: 'JSON (.json)'
-        },
-        inputValue: exportFormats.MARKDOWN
-      }
-    )
+    // 创建下载链接
+    let content = ''
+    let fileName = ''
+    let mimeType = ''
 
-    const result = exportNoteUtil(selectedNote.value, format)
-    ElMessage.success(`笔记已导出为 ${result.fileName}`)
+    switch (format) {
+      case 'markdown':
+        content = convertToMarkdown(selectedNote.value.noteContent)
+        fileName = `${selectedNote.value.noteName}.md`
+        mimeType = 'text/markdown'
+        break
+      case 'txt':
+        content = stripHtml(selectedNote.value.noteContent)
+        fileName = `${selectedNote.value.noteName}.txt`
+        mimeType = 'text/plain'
+        break
+      case 'html':
+        content = selectedNote.value.noteContent
+        fileName = `${selectedNote.value.noteName}.html`
+        mimeType = 'text/html'
+        break
+      default:
+        ElMessage.error('不支持的导出格式')
+        return
+    }
+
+    // 创建下载
+    const blob = new Blob([content], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    link.click()
+    URL.revokeObjectURL(url)
+
+    ElMessage.success(`已导出为 ${fileName}`)
     
   } catch (error) {
-    if (error !== 'cancel') {
-      console.error('导出失败:', error)
-      ElMessage.error('导出失败')
-    }
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败')
   }
+}
+
+// 简单的HTML转Markdown转换
+const convertToMarkdown = (html) => {
+  if (!html) return ''
+  // 这是一个简化的转换，实际项目中可能需要更完善的转换库
+  return html
+    .replace(/<h([1-6])>(.*?)<\/h[1-6]>/g, (match, level, text) => '#'.repeat(parseInt(level)) + ' ' + text + '\n\n')
+    .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
+    .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
+    .replace(/<em>(.*?)<\/em>/g, '*$1*')
+    .replace(/<br\s*\/?>/g, '\n')
+    .replace(/<[^>]*>/g, '') // 移除其他HTML标签
+    .trim()
+}
+
+// 移除HTML标签
+const stripHtml = (html) => {
+  if (!html) return ''
+  const tmp = document.createElement('div')
+  tmp.innerHTML = html
+  return tmp.textContent || tmp.innerText || ''
 }
 
 const deleteNote = async () => {
@@ -245,6 +330,7 @@ const deleteNote = async () => {
 
 const handleShared = (shareData) => {
   console.log('笔记分享成功:', shareData)
+  ElMessage.success('笔记分享成功')
 }
 
 onMounted(async () => {
@@ -257,7 +343,7 @@ onMounted(async () => {
       if (noteId && noteList.value.length > 0) {
         const note = noteList.value.find(n => n.noteId == noteId)
         if (note) {
-          selectNote(note)
+          await selectNote(note)
         }
       }
     } catch (err) {
@@ -281,7 +367,7 @@ watch(
     if (newParams.noteId !== oldParams.noteId && newParams.noteId) {
       const note = noteList.value.find(n => n.noteId == newParams.noteId)
       if (note) {
-        selectNote(note)
+        await selectNote(note)
       }
     }
   }
@@ -291,53 +377,56 @@ watch(
 <style scoped>
 .book-nav {
   height: 100%;
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  background: #ffffff;
 }
 
-.note-list {
-  padding: 16px;
+/* Note list sidebar */
+.note-list-aside {
+  border-right: 1px solid #e4e7ed;
+  background: #f5f7fa;
   height: 100%;
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.note-list-header {
+  padding: 12px;
+  border-bottom: 1px solid #e4e7ed;
+  background: #ffffff;
 }
 
 .note-items {
-  max-height: calc(100vh - 140px);
+  height: calc(100vh - 60px);
   overflow-y: auto;
-  border-radius: 12px;
-  background: white;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   padding: 8px;
 }
 
 .note-item {
-  padding: 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 8px;
+  padding: 12px;
   margin-bottom: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #ffffff;
+  border: 1px solid transparent;
 }
 
 .note-item:hover {
-  background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
-  transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  background-color: #ecf5ff;
+  border-color: #b3d8ff;
 }
 
 .note-item.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-left: none;
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+  background-color: #409eff;
+  color: #ffffff;
+  border-color: #409eff;
 }
 
 .note-title {
-  font-weight: 600;
-  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
 }
 
 .note-date {
@@ -345,81 +434,100 @@ watch(
   opacity: 0.7;
 }
 
+.note-item.active .note-date {
+  opacity: 0.8;
+}
+
+/* Main content area */
+.note-main {
+  padding: 0;
+  height: 100%;
+  background: #ffffff;
+}
+
 .note-editor {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: white;
 }
 
+/* Upper section: Note header with title and toolbar */
 .note-header {
-  padding: 20px 28px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
   display: flex;
   align-items: center;
-  gap: 20px;
-  backdrop-filter: blur(20px);
+  padding: 16px 20px;
+  border-bottom: 1px solid #e4e7ed;
+  background: #ffffff;
+  min-height: 60px;
+}
+
+.title-section {
+  flex: 1;
+  margin-right: 16px;
 }
 
 .note-title-input {
-  flex: 1;
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.note-title-input :deep(.el-input__wrapper) {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  font-size: 18px;
+  font-weight: 600;
+  padding: 0;
 }
 
 .note-title-input :deep(.el-input__inner) {
-  border: none;
-  font-size: 20px;
-  font-weight: 700;
-  background: transparent;
-  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
 }
 
-.note-actions {
+.toolbar-section {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
-.share-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 10px;
-  font-weight: 600;
-  padding: 10px 20px;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.toolbar-btn {
+  height: 32px;
+  border-radius: 6px;
+  font-size: 14px;
+  border: 1px solid #e4e7ed;
 }
 
-.share-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+.toolbar-btn.el-button--primary {
+  background-color: #409eff;
+  border-color: #409eff;
+  color: #ffffff;
 }
 
-.more-btn {
-  border-radius: 10px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.toolbar-btn.el-button--primary:hover {
+  background-color: #66b1ff;
+  border-color: #66b1ff;
 }
 
-.more-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+.auto-save-btn {
+  color: #67c23a;
+  border-color: #c2e7b0;
+  background-color: #f0f9ff;
 }
 
+.auto-save-btn.is-disabled {
+  color: #909399;
+  border-color: #e4e7ed;
+  background-color: #f5f7fa;
+}
+
+/* Lower section: Editor container */
 .editor-container {
   flex: 1;
-  padding: 24px 28px;
-  background: white;
-}
-
-.placeholder-editor {
-  text-align: center;
-  color: #909399;
-  padding: 60px;
+  padding: 20px;
+  background: #ffffff;
+  overflow: hidden;
 }
 
 .no-note-selected {
@@ -427,24 +535,35 @@ watch(
   align-items: center;
   justify-content: center;
   height: 100%;
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  background: #f5f7fa;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .note-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  
+  .title-section {
+    margin-right: 0;
+  }
+  
+  .toolbar-section {
+    justify-content: flex-end;
+  }
 }
 
 /* 搜索框样式 */
-.el-input {
-  border-radius: 12px;
+.note-list-header .el-input :deep(.el-input__wrapper) {
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
 }
 
-.el-input :deep(.el-input__inner) {
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.el-input :deep(.el-input__inner):focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+.note-list-header .el-input :deep(.el-input__wrapper.is-focus) {
+  border-color: #409eff;
+  box-shadow: 0 0 0 1px rgba(64, 158, 255, 0.2);
 }
 </style>

@@ -314,38 +314,36 @@ const handleSearch = async () => {
   hasSearched.value = true
   
   try {
-    // TODO: 实现实际的搜索API调用
-    // 这里先模拟搜索结果
-    const allNotes = []
+    // 调用后台搜索API
+    const res = await notesStore.searchNotes({ keyword: searchKeyword.value })
     
-    // 获取所有笔记本的笔记
-    for (const notebook of notebooks.value) {
-      try {
-        await notesStore.getNotesByBook({ nbi: notebook.noteBookId })
-        const notesInBook = notesStore.noteList.map(note => ({
-          ...note,
-          noteBookName: notebook.noteBookName
-        }))
-        allNotes.push(...notesInBook)
-      } catch (err) {
-        console.error('获取笔记失败:', err)
-      }
+    if (res && res.data && res.data.rows) {
+      // 根据后台返回的结构处理搜索结果
+      searchResults.value = res.data.rows.map(note => ({
+        noteId: note.noteId,
+        noteName: note.noteName,
+        noteBookName: note.NoteBook ? note.NoteBook.noteBookName : '未知笔记本',
+        noteBookId: note.NoteBook ? note.NoteBook.noteBookId : null,
+        updateTime: note.updateTime,
+        noteContent: note.NoteContent ? note.NoteContent.noteContentText : ''
+      }))
+    } else {
+      searchResults.value = []
     }
-
-    // 过滤包含关键词的笔记
-    searchResults.value = allNotes.filter(note => 
-      note.noteName.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
-      (note.noteContent && note.noteContent.toLowerCase().includes(searchKeyword.value.toLowerCase()))
-    )
   } catch (err) {
     console.error('搜索失败:', err)
     ElMessage.error('搜索失败')
+    searchResults.value = []
   }
 }
 
 const selectSearchResult = (note) => {
   // 跳转到选中的笔记
-  router.push(`/book/${note.noteBookId}/note/${note.noteId}`)
+  if (note.noteBookId) {
+    router.push(`/book/${note.noteBookId}/note/${note.noteId}`)
+  } else {
+    router.push(`/book/1/note/${note.noteId}`) // 默认笔记本
+  }
   showSearchDialog.value = false
 }
 

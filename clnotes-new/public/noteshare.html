@@ -1,39 +1,466 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="zh-CN">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="theme-color" content="#000000">
-    <!--
-      manifest.json provides metadata used when your web app is added to the
-      homescreen on Android. See https://developers.google.com/web/fundamentals/engage-and-retain/web-app-manifest/
-    -->
-    <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.ico">
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
-
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-    <title>云笔记分享</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分享笔记 - 云笔记</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: #f5f7fa;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        
+        .note-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        
+        .note-header {
+            padding: 30px 30px 20px;
+            border-bottom: 1px solid #e4e7ed;
+        }
+        
+        .note-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #303133;
+            margin-bottom: 16px;
+            line-height: 1.4;
+        }
+        
+        .note-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #909399;
+            font-size: 14px;
+        }
+        
+        .note-author {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .author-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #409eff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .note-content {
+            padding: 30px;
+            color: #303133;
+            line-height: 1.8;
+        }
+        
+        .note-content h1,
+        .note-content h2,
+        .note-content h3,
+        .note-content h4,
+        .note-content h5,
+        .note-content h6 {
+            margin-top: 20px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: #303133;
+        }
+        
+        .note-content h1 { font-size: 22px; }
+        .note-content h2 { font-size: 20px; }
+        .note-content h3 { font-size: 18px; }
+        .note-content h4 { font-size: 16px; }
+        
+        .note-content p {
+            margin-bottom: 12px;
+        }
+        
+        .note-content ul,
+        .note-content ol {
+            margin-bottom: 12px;
+            padding-left: 20px;
+        }
+        
+        .note-content li {
+            margin-bottom: 4px;
+        }
+        
+        .note-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            margin: 16px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .note-content blockquote {
+            border-left: 4px solid #409eff;
+            padding-left: 16px;
+            margin: 16px 0;
+            color: #606266;
+            font-style: italic;
+        }
+        
+        .note-content code {
+            background: #f5f7fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+        }
+        
+        .note-content pre {
+            background: #f5f7fa;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+        
+        .note-content pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        .error-container {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .error-icon {
+            font-size: 48px;
+            color: #f56c6c;
+            margin-bottom: 16px;
+        }
+        
+        .error-title {
+            font-size: 20px;
+            color: #303133;
+            margin-bottom: 8px;
+        }
+        
+        .error-message {
+            color: #909399;
+            margin-bottom: 24px;
+        }
+        
+        .password-container {
+            max-width: 400px;
+            margin: 60px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+        
+        .password-title {
+            font-size: 20px;
+            color: #303133;
+            margin-bottom: 16px;
+        }
+        
+        .password-message {
+            color: #909399;
+            margin-bottom: 24px;
+        }
+        
+        .password-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        
+        .password-input:focus {
+            outline: none;
+            border-color: #409eff;
+            box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+        }
+        
+        .password-button {
+            width: 100%;
+            padding: 12px 16px;
+            background: #409eff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .password-button:hover {
+            background: #66b1ff;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #409eff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: #909399;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 16px;
+                margin: 20px auto;
+            }
+            
+            .note-header,
+            .note-content {
+                padding: 20px;
+            }
+            
+            .note-title {
+                font-size: 20px;
+            }
+            
+            .note-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+        }
+    </style>
 </head>
 <body>
-<noscript>
-    You need to enable JavaScript to run this app.
-</noscript>
-<div id="root"></div>
-<!--
-  This HTML file is a template.
-  If you open it directly in the browser, you will see an empty page.
+    <div id="app">
+        <div class="header">
+            <h1>云笔记</h1>
+            <p>分享知识，传递智慧</p>
+        </div>
+        
+        <div class="container">
+            <!-- 加载状态 -->
+            <div v-if="loading" class="loading">
+                <div class="loading-spinner"></div>
+                <p>正在加载笔记...</p>
+            </div>
+            
+            <!-- 密码验证 -->
+            <div v-else-if="needPassword" class="password-container">
+                <h2 class="password-title">私密分享</h2>
+                <p class="password-message">此笔记需要密码才能访问</p>
+                <input 
+                    v-model="password" 
+                    type="password" 
+                    class="password-input" 
+                    placeholder="请输入分享密码"
+                    @keyup.enter="verifyPassword"
+                >
+                <button class="password-button" @click="verifyPassword">访问笔记</button>
+                <p v-if="passwordError" style="color: #f56c6c; margin-top: 12px; font-size: 14px;">
+                    {{ passwordError }}
+                </p>
+            </div>
+            
+            <!-- 错误状态 -->
+            <div v-else-if="error" class="error-container">
+                <div class="error-icon">⚠️</div>
+                <h2 class="error-title">无法访问此笔记</h2>
+                <p class="error-message">{{ error }}</p>
+            </div>
+            
+            <!-- 笔记内容 -->
+            <div v-else-if="note" class="note-card">
+                <div class="note-header">
+                    <h1 class="note-title">{{ note.noteName }}</h1>
+                    <div class="note-meta">
+                        <div class="note-author">
+                            <div class="author-avatar">
+                                {{ getAuthorInitial(note.User?.realName) }}
+                            </div>
+                            <span>{{ note.User?.realName || '匿名用户' }}</span>
+                        </div>
+                        <div class="note-date">
+                            {{ formatDate(note.updateTime) }}
+                        </div>
+                    </div>
+                </div>
+                <div class="note-content" v-html="note.NoteContent?.noteContentText || '此笔记暂无内容'">
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Powered by 云笔记 | 分享让知识更有价值</p>
+        </div>
+    </div>
 
-  You can add webfonts, meta tags, or analytics to this file.
-  The build step will place the bundled scripts into the <body> tag.
-
-  To begin the development, run `npm start` or `yarn start`.
-  To create a production bundle, use `npm run build` or `yarn build`.
--->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    loading: true,
+                    note: null,
+                    error: null,
+                    needPassword: false,
+                    password: '',
+                    passwordError: ''
+                };
+            },
+            mounted() {
+                this.loadNote();
+            },
+            methods: {
+                loadNote() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const shareId = urlParams.get('shareId');
+                    
+                    if (!shareId) {
+                        this.error = '无效的分享链接';
+                        this.loading = false;
+                        return;
+                    }
+                    
+                    this.fetchNote(shareId);
+                },
+                
+                async fetchNote(shareId, password = '') {
+                    this.loading = true;
+                    this.passwordError = '';
+                    
+                    try {
+                        const params = { shareId };
+                        if (password) {
+                            params.password = password;
+                        }
+                        
+                        const response = await axios.get('/apps/pub/note/share', {
+                            params,
+                            headers: {
+                                'cv': '3.6.0',
+                                'Accept': 'application/json',
+                                'Content-type': 'application/json;charset=UTF-8'
+                            }
+                        });
+                        
+                        if (response.data.status === 'ok') {
+                            this.note = response.data.data;
+                            this.needPassword = false;
+                            this.error = null;
+                        } else if (response.data.status === 'err_password_required') {
+                            this.needPassword = true;
+                            this.note = null;
+                            this.error = null;
+                        } else {
+                            this.error = response.data.msg || '笔记不存在或已被删除';
+                            this.needPassword = false;
+                        }
+                    } catch (error) {
+                        console.error('加载笔记失败:', error);
+                        if (error.response?.status === 404) {
+                            this.error = '笔记不存在或已被删除';
+                        } else if (error.response?.status === 403) {
+                            this.error = '您没有访问此笔记的权限';
+                        } else {
+                            this.error = '网络错误，请稍后重试';
+                        }
+                        this.needPassword = false;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                verifyPassword() {
+                    if (!this.password.trim()) {
+                        this.passwordError = '请输入密码';
+                        return;
+                    }
+                    
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const shareId = urlParams.get('shareId');
+                    this.fetchNote(shareId, this.password);
+                },
+                
+                getAuthorInitial(name) {
+                    if (!name) return '匿';
+                    return name.charAt(0).toUpperCase();
+                },
+                
+                formatDate(dateString) {
+                    if (!dateString) return '';
+                    const date = new Date(dateString);
+                    return date.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            }
+        }).mount('#app');
+    </script>
 </body>
 </html>

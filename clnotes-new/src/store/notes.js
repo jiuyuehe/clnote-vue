@@ -256,6 +256,37 @@ export const useNotesStore = defineStore('notes', {
       } catch (err) {
         console.log("getShareNoteDetail:", err)
       }
+    },
+
+    // 搜索笔记
+    async searchNotes(params) {
+      try {
+        const res = await createFetch({
+          url: '/notes/search',
+          params: params
+        })
+
+        return res
+      } catch (err) {
+        console.log("searchNotes:", err)
+        throw err
+      }
+    },
+
+    // 批量移动笔记
+    async moveNotes(params) {
+      try {
+        const res = await createFetch({
+          url: '/notes/move',
+          method: 'post',
+          body: params
+        })
+
+        return res
+      } catch (err) {
+        console.log("moveNotes:", err)
+        throw err
+      }
     }
   }
 })

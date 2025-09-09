@@ -1,18 +1,56 @@
 <template>
   <div class="nav">
     <div class="book-opt">
-      <el-dropdown @command="handleDropdownCommand">
-        <span class="el-dropdown-link nav-add">
-          <el-icon><Plus /></el-icon> 新增 
-          <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-        </span>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="newNote">新建笔记</el-dropdown-item>
-            <el-dropdown-item command="newNotebook">新建笔记本</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
+      <div class="action-buttons">
+        <el-button 
+          type="primary" 
+          size="small" 
+          :icon="Plus" 
+          @click="newNote"
+          class="action-btn"
+        >
+          新建笔记
+        </el-button>
+        <el-button 
+          type="default" 
+          size="small" 
+          :icon="Notebook" 
+          @click="showModal()"
+          class="action-btn"
+        >
+          新建笔记本
+        </el-button>
+        <el-button 
+          type="default" 
+          size="small" 
+          :icon="Search" 
+          @click="toggleSearch"
+          class="action-btn"
+        >
+          搜索
+        </el-button>
+        <el-button 
+          type="default" 
+          size="small" 
+          :icon="Share" 
+          @click="showShareDialog"
+          class="action-btn"
+        >
+          分享
+        </el-button>
+      </div>
+      
+      <!-- 搜索输入框 -->
+      <div v-show="showSearchInput" class="search-container">
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索笔记..."
+          :prefix-icon="Search"
+          @input="handleSearch"
+          @keyup.enter="handleSearch"
+          clearable
+        />
+      </div>
     </div>
 
     <ul>
@@ -21,6 +59,29 @@
           <el-icon><Document /></el-icon>
           我的分享
         </router-link>
+      </li>
+
+      <li>
+        <div class="nav-list">
+          <el-icon><Collection /></el-icon><span> 分类</span>
+        </div>
+        <ul class="category-list">
+          <li 
+            v-for="category in categories" 
+            :key="category.id" 
+            class="category-item"
+            :class="{ active: selectedCategory === category.id }"
+            @click="selectCategory(category.id)"
+          >
+            <div class="category-content">
+              <div 
+                class="category-color" 
+                :style="{ backgroundColor: category.color }"
+              ></div>
+              <span>{{ category.name }}</span>
+            </div>
+          </li>
+        </ul>
       </li>
 
       <li>
@@ -84,6 +145,12 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 分享对话框 -->
+    <ShareDialog
+      v-model="showShareModal"
+      @shared="handleShared"
+    />
   </div>
 </template>
 
@@ -92,8 +159,9 @@ import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useNotesStore } from '@/store'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Plus, ArrowDown, Document, Notebook, ArrowDownBold } from '@element-plus/icons-vue'
+import { Plus, ArrowDown, Document, Notebook, ArrowDownBold, Search, Share, Collection } from '@element-plus/icons-vue'
 import { sysHandler } from '@/utils/sysHandler'
+import ShareDialog from './ShareDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -104,9 +172,14 @@ const visible = ref(false)
 const bookName = ref('')
 const renameId = ref(undefined)
 const bookNameInput = ref(null)
+const showSearchInput = ref(false)
+const searchKeyword = ref('')
+const showShareModal = ref(false)
 
 // 计算属性
 const notebooks = computed(() => notesStore.notebooks)
+const categories = computed(() => notesStore.categories)
+const selectedCategory = computed(() => notesStore.selectedCategory)
 
 // 方法
 const handleDropdownCommand = (command) => {
@@ -241,6 +314,31 @@ const showMenu = (item, visible) => {
   console.log('显示菜单:', visible, item)
 }
 
+const toggleSearch = () => {
+  showSearchInput.value = !showSearchInput.value
+  if (!showSearchInput.value) {
+    searchKeyword.value = ''
+  }
+}
+
+const handleSearch = () => {
+  // TODO: Implement search functionality
+  console.log('搜索关键词:', searchKeyword.value)
+}
+
+const showShareDialog = () => {
+  showShareModal.value = true
+}
+
+const handleShared = (shareData) => {
+  console.log('笔记分享成功:', shareData)
+  // 可以在这里添加成功后的处理逻辑
+}
+
+const selectCategory = (categoryId) => {
+  notesStore.setSelectedCategory(selectedCategory.value === categoryId ? null : categoryId)
+}
+
 onMounted(() => {
   // 组件挂载后的初始化
 })
@@ -248,11 +346,49 @@ onMounted(() => {
 
 <style scoped>
 .nav {
-  padding: 10px;
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
 }
 
 .book-opt {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.action-btn {
+  flex: 1;
+  min-width: 80px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.search-container {
+  margin-top: 12px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .nav-add {
@@ -276,29 +412,36 @@ li {
 }
 
 .nav-list {
-  padding: 8px 12px;
-  color: #606266;
-  font-weight: 500;
+  padding: 12px 16px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .notebook-nav {
   display: block;
-  padding: 8px 12px;
-  color: #606266;
+  padding: 12px 16px;
+  color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
-  border-radius: 4px;
-  transition: all 0.3s;
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  margin-bottom: 4px;
+  backdrop-filter: blur(10px);
 }
 
 .notebook-nav:hover {
-  background-color: #f5f7fa;
-  color: #409eff;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  transform: translateX(4px);
 }
 
 .notebook-nav.active {
-  background-color: #ecf5ff;
-  color: #409eff;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .note-over {
@@ -324,5 +467,43 @@ li {
 
 .el-dropdown-link {
   cursor: pointer;
+}
+
+.category-list {
+  padding-left: 20px;
+}
+
+.category-item {
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.category-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  transform: translateX(4px);
+}
+
+.category-item.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.category-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.category-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 </style>

@@ -61,9 +61,9 @@ const editorConfig = {
       maxNumberOfFiles: 10,
       allowedFileTypes: ['image/*'],
       headers: {
-        'ct': import.meta.env.DEV
+        'ct': Cookies.get('ct') || (import.meta.env.DEV 
           ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjk5LCJlbnRJZCI6MSwidGltZSI6MTUwOTk4MjAyNywia2V5IjoiYm5pNDVwYTFuYmJmIiwiaWF0IjoxNTA5OTgyMDI3fQ.Z55zBSLCH265w28B_tJawH725q2uHUXdZHm4m2adOLs'
-          : Cookies.get('ct'),
+          : ''),
         'cv': '3.6.0',
         'utt': 'fdfs',
         'dft': 'public'

@@ -53,13 +53,19 @@
                   分享
                 </el-button>
                 <el-button 
-                  type="default" 
+                  type="success"
                   size="small" 
-                  :icon="Check"
+                  :icon="autoSaveStatus === 'saved' ? Check : Loading"
                   class="toolbar-btn auto-save-btn"
-                  :disabled="true"
+                  :disabled="autoSaveStatus === 'saving'"
+                  :class="{
+                    'is-saving': autoSaveStatus === 'saving',
+                    'is-saved': autoSaveStatus === 'saved',
+                    'is-unsaved': autoSaveStatus === 'unsaved'
+                  }"
+                  @click="manualSave"
                 >
-                  自动保存
+                  {{ autoSaveStatus === 'saving' ? '保存中...' : autoSaveStatus === 'saved' ? '已保存' : '未保存' }}
                 </el-button>
                 <el-dropdown @command="handleNoteAction" trigger="click">
                   <el-button size="small" type="default" class="toolbar-btn">
@@ -71,7 +77,8 @@
                       <el-dropdown-item command="export-md">导出为 Markdown</el-dropdown-item>
                       <el-dropdown-item command="export-txt">导出为文本</el-dropdown-item>
                       <el-dropdown-item command="export-html">导出为 HTML</el-dropdown-item>
-                      <el-dropdown-item divided command="delete">删除笔记</el-dropdown-item>
+                      <el-dropdown-item divided command="move">移动笔记</el-dropdown-item>
+                      <el-dropdown-item command="delete">删除笔记</el-dropdown-item>
                     </el-dropdown-menu>
                   </template>
                 </el-dropdown>
@@ -81,7 +88,7 @@
             <!-- Lower section: Rich text editor -->
             <div class="editor-container">
               <WangEditor
-                v-model="selectedNote.noteContent"
+                v-model="noteContent"
                 :onTextChange="handleTextChange"
                 :onImageUpdate="handleImageUpdate"
                 ref="editorRef"
@@ -101,14 +108,53 @@
       :noteId="selectedNote?.noteId"
       @shared="handleShared"
     />
+
+    <!-- 移动笔记对话框 -->
+    <el-dialog 
+      v-model="showMoveDialog" 
+      title="移动笔记" 
+      width="400px"
+      class="move-dialog"
+    >
+      <div class="move-form">
+        <p class="move-info">将笔记"{{ selectedNote?.noteName }}"移动到：</p>
+        <el-select
+          v-model="moveToNotebookId"
+          placeholder="请选择目标笔记本"
+          style="width: 100%"
+          size="large"
+        >
+          <el-option
+            v-for="notebook in availableNotebooks"
+            :key="notebook.noteBookId"
+            :label="notebook.noteBookName"
+            :value="notebook.noteBookId"
+            :disabled="notebook.noteBookId === currentNotebookId"
+          />
+        </el-select>
+      </div>
+      
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showMoveDialog = false">取消</el-button>
+          <el-button 
+            type="primary" 
+            @click="handleMoveNote"
+            :loading="isMoving"
+          >
+            确认移动
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useNotesStore } from '@/store'
-import { Search, Share, ArrowDown, Check } from '@element-plus/icons-vue'
+import { Search, Share, ArrowDown, Check, Loading } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import WangEditor from './WangEditor.vue'
 import ShareDialog from './ShareDialog.vue'
@@ -121,10 +167,34 @@ const searchText = ref('')
 const selectedNoteId = ref(null)
 const editorRef = ref(null)
 const showShareModal = ref(false)
+const showMoveDialog = ref(false)
+const moveToNotebookId = ref(null)
+const isMoving = ref(false)
 let autoSaveTimer = null
 
 const noteList = computed(() => notesStore.noteList)
 const selectedNote = computed(() => notesStore.noteDetail)
+
+// 计算笔记内容
+const noteContent = computed({
+  get() {
+    return selectedNote.value?.NoteContent?.noteContentText || ''
+  },
+  set(value) {
+    if (selectedNote.value && selectedNote.value.NoteContent) {
+      selectedNote.value.NoteContent.noteContentText = value
+    }
+  }
+})
+
+// 自动保存状态
+const autoSaveStatus = ref('saved') // 'saved', 'saving', 'unsaved'
+
+// 当前笔记本ID
+const currentNotebookId = computed(() => parseInt(route.params.nbi))
+
+// 可用的笔记本列表（排除当前笔记本）
+const availableNotebooks = computed(() => notesStore.notebooks)
 
 // 过滤笔记列表
 const filteredNoteList = computed(() => {
@@ -179,25 +249,67 @@ const formatDate = (dateString) => {
 
 // 处理文本变化，实现自动保存
 const handleTextChange = () => {
+  autoSaveStatus.value = 'unsaved'
+  
   if (autoSaveTimer) {
     clearTimeout(autoSaveTimer)
   }
   
   autoSaveTimer = setTimeout(async () => {
-    if (selectedNote.value) {
-      try {
-        await notesStore.createNote({
-          noteId: selectedNote.value.noteId,
-          noteContent: selectedNote.value.noteContent
-        }, 'update')
-        console.log('自动保存成功')
-        // 可以在这里显示一个简短的保存提示
-      } catch (err) {
-        console.error('自动保存失败:', err)
-      }
-    }
+    await performSave()
   }, 4000) // 4秒后自动保存
 }
+
+// 手动保存
+const manualSave = async () => {
+  await performSave()
+}
+
+// 执行保存操作
+const performSave = async () => {
+  if (!selectedNote.value) return
+  
+  autoSaveStatus.value = 'saving'
+  
+  try {
+    await notesStore.createNote({
+      noteId: selectedNote.value.noteId,
+      noteContent: noteContent.value
+    }, 'update')
+    
+    autoSaveStatus.value = 'saved'
+    console.log('保存成功')
+    
+    // 2秒后恢复到普通状态
+    setTimeout(() => {
+      if (autoSaveStatus.value === 'saved') {
+        autoSaveStatus.value = 'saved'
+      }
+    }, 2000)
+    
+  } catch (err) {
+    console.error('保存失败:', err)
+    autoSaveStatus.value = 'unsaved'
+    ElMessage.error('保存失败')
+  }
+}
+
+// 添加Ctrl+S快捷键支持
+onMounted(() => {
+  const handleKeydown = (e) => {
+    if (e.ctrlKey && e.key === 's') {
+      e.preventDefault()
+      manualSave()
+    }
+  }
+  
+  document.addEventListener('keydown', handleKeydown)
+  
+  // 清理事件监听器
+  onBeforeUnmount(() => {
+    document.removeEventListener('keydown', handleKeydown)
+  })
+})
 
 // 处理图片上传
 const handleImageUpdate = (fileName) => {
@@ -227,6 +339,9 @@ const handleNoteAction = async (command) => {
       break
     case 'export-html':
       await exportNote('html')
+      break
+    case 'move':
+      showMoveNote()
       break
     case 'delete':
       await deleteNote()
@@ -331,6 +446,63 @@ const deleteNote = async () => {
 const handleShared = (shareData) => {
   console.log('笔记分享成功:', shareData)
   ElMessage.success('笔记分享成功')
+}
+
+// 显示移动笔记对话框
+const showMoveNote = () => {
+  if (!selectedNote.value) {
+    ElMessage.warning('请先选择一个笔记')
+    return
+  }
+  
+  // 重置选择的笔记本
+  moveToNotebookId.value = null
+  showMoveDialog.value = true
+}
+
+// 执行移动笔记
+const handleMoveNote = async () => {
+  if (!moveToNotebookId.value) {
+    ElMessage.error('请选择目标笔记本')
+    return
+  }
+  
+  if (moveToNotebookId.value === currentNotebookId.value) {
+    ElMessage.error('不能移动到当前笔记本')
+    return
+  }
+  
+  isMoving.value = true
+  
+  try {
+    const res = await notesStore.moveNotes({
+      noteIds: [selectedNote.value.noteId],
+      noteBookId: moveToNotebookId.value
+    })
+    
+    if (res && res.status === 'ok') {
+      ElMessage.success('笔记移动成功')
+      showMoveDialog.value = false
+      
+      // 重新加载当前笔记本的笔记列表
+      await notesStore.getNotesByBook({ nbi: currentNotebookId.value })
+      
+      // 如果当前选中的笔记被移动，清空选择
+      if (selectedNote.value && selectedNote.value.noteId) {
+        selectedNoteId.value = null
+        notesStore.setNoteDetail(null)
+        router.replace(`/book/${currentNotebookId.value}`)
+      }
+      
+    } else {
+      ElMessage.error('移动失败: ' + (res?.msg || '未知错误'))
+    }
+  } catch (err) {
+    console.error('移动笔记失败:', err)
+    ElMessage.error('移动失败')
+  } finally {
+    isMoving.value = false
+  }
 }
 
 onMounted(async () => {
@@ -516,6 +688,24 @@ watch(
   background-color: #f0f9ff;
 }
 
+.auto-save-btn.is-saving {
+  color: #e6a23c;
+  border-color: #f5dab1;
+  background-color: #fdf6ec;
+}
+
+.auto-save-btn.is-saved {
+  color: #67c23a;
+  border-color: #c2e7b0;
+  background-color: #f0f9ff;
+}
+
+.auto-save-btn.is-unsaved {
+  color: #909399;
+  border-color: #e4e7ed;
+  background-color: #f5f7fa;
+}
+
 .auto-save-btn.is-disabled {
   color: #909399;
   border-color: #e4e7ed;
@@ -565,5 +755,26 @@ watch(
 .note-list-header .el-input :deep(.el-input__wrapper.is-focus) {
   border-color: #409eff;
   box-shadow: 0 0 0 1px rgba(64, 158, 255, 0.2);
+}
+
+/* 移动对话框样式 */
+.move-dialog :deep(.el-dialog) {
+  border-radius: 12px;
+}
+
+.move-form {
+  padding: 20px 0;
+}
+
+.move-info {
+  margin-bottom: 16px;
+  color: #606266;
+  font-size: 14px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 </style>

@@ -5,36 +5,42 @@
         <div class="share-content">
           <h2>我的分享</h2>
           <el-table :data="shareNoteList" style="width: 100%">
-            <el-table-column prop="noteName" label="笔记名称" width="300" />
-            <el-table-column prop="shareTime" label="分享时间" width="200">
+            <el-table-column prop="Note.noteName" label="笔记名称" width="300">
               <template #default="scope">
-                {{ formatDate(scope.row.shareTime) }}
+                {{ scope.row.Note ? scope.row.Note.noteName : '未知笔记' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="createTime" label="分享时间" width="200">
+              <template #default="scope">
+                {{ formatDate(scope.row.createTime) }}
               </template>
             </el-table-column>
             <el-table-column prop="shareUrl" label="分享链接" min-width="300">
               <template #default="scope">
                 <el-input
-                  :value="getShareUrl(scope.row.shareId)"
+                  :value="getShareUrl(scope.row.noteShareId)"
                   readonly
                   style="margin-right: 10px;"
                 />
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="150">
+            <el-table-column label="操作" width="200">
               <template #default="scope">
-                <el-button
-                  size="small"
-                  @click="copyShareUrl(scope.row.shareId)"
-                >
-                  复制链接
-                </el-button>
-                <el-button
-                  size="small"
-                  type="danger"
-                  @click="cancelShare(scope.row)"
-                >
-                  取消分享
-                </el-button>
+                <div class="action-buttons">
+                  <el-button
+                    size="small"
+                    @click="copyShareUrl(scope.row.noteShareId)"
+                  >
+                    复制链接
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="danger"
+                    @click="cancelShare(scope.row)"
+                  >
+                    取消分享
+                  </el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -55,12 +61,12 @@ const notesStore = useNotesStore()
 
 const shareNoteList = computed(() => notesStore.shareNoteList)
 
-const getShareUrl = (shareId) => {
-  return `${window.location.origin}/noteshare.html?shareId=${shareId}`
+const getShareUrl = (noteShareId) => {
+  return `${window.location.origin}/noteshare.html?shareId=${noteShareId}`
 }
 
-const copyShareUrl = async (shareId) => {
-  const url = getShareUrl(shareId)
+const copyShareUrl = async (noteShareId) => {
+  const url = getShareUrl(noteShareId)
   try {
     await navigator.clipboard.writeText(url)
     ElMessage.success('链接已复制到剪贴板')
@@ -87,7 +93,7 @@ const cancelShare = (item) => {
     }
   ).then(async () => {
     try {
-      await notesStore.cancelShareNote({ shareId: item.shareId })
+      await notesStore.cancelShareNote({ noteShareId: item.noteShareId })
       ElMessage.success('已取消分享')
       // 重新获取分享列表
       notesStore.getShareNotes()
@@ -127,5 +133,15 @@ h2 {
 
 .el-button + .el-button {
   margin-left: 8px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-buttons .el-button {
+  margin: 0;
 }
 </style>

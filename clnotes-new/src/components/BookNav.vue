@@ -139,7 +139,7 @@ const filteredNoteList = computed(() => {
 const selectNote = async (note) => {
   selectedNoteId.value = note.noteId
   try {
-    await notesStore.getNoteDetail({ noteId: note.noteId })
+    await notesStore.getNoteDetail({ ni: note.noteId })
     // 更新路由但不重新加载组件
     if (route.params.noteId !== note.noteId.toString()) {
       router.replace(`/book/${route.params.nbi}/note/${note.noteId}`)

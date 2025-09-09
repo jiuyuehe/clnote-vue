@@ -13,12 +13,12 @@ export default defineConfig({
   server: {
     proxy: {
       '/apps': {
-        target: 'http://192.168.0.29',
+        target: 'http://192.168.1.26',
         changeOrigin: true,
         rewrite: (path) => path
       },
       '/upload': {
-        target: 'http://192.168.0.29',
+        target: 'http://192.168.1.26',
         changeOrigin: true,
         rewrite: (path) => path
       }

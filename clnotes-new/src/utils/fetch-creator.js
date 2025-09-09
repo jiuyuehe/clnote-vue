@@ -17,7 +17,7 @@ function createQuery(method, body) {
     method: method,
     headers: {
       ct: import.meta.env.DEV
-        ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI5NyIsImVudElkIjoiMSIsInRpbWUiOjE1MTM3OTIzMzYsImtleSI6InZtM3RwbXRqNWQ4eiIsImlhdCI6MTUxMzc5MjMzNn0.LC9h-21Ml80bPjI9M_82SLvyN289ZsCotc4IctVtcCM'
+        ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjk5LCJ0aW1lIjoxNzU3NDExMTE5LCJrZXkiOiIxMjM0NTY3NC4yIiwiaXAiOiIxNzIuMjEuMC4xIiwiZGV2aWNlIjoid2ViIiwiaWF0IjoxNzU3NDExMTE5fQ.iJT3ZUCY50uvHDGHGRCcx5v16mpou94WOpTpA9Eb8l8'
         : Cookies.get('ct'),
       'cv': '3.5.0',
       'Accept': 'application/json',

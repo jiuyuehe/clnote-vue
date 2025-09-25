@@ -176,23 +176,51 @@ export const useNotesStore = defineStore('notes', {
         })
       } catch (err) {
         console.log("delNotes:", err)
+        throw err
+      }
+    },
+
+    // 删除单个笔记
+    async delNote(params) {
+      try {
+        return await createFetch({
+          url: '/note',
+          method: 'delete',
+          body: params
+        })
+      } catch (err) {
+        console.log("delNote:", err)
+        throw err
       }
     },
 
     async shareNote(params) {
       try {
+        const body = {
+          noteId: params.noteId,
+          accessPermission: params.accessPermission || 'readonly',
+          shareScope: params.shareScope || 'public'
+        }
+        
+        // 如果是私密分享，添加密码参数（支持 params.password 或 params.sharePwd）
+        const pwd = params.password ?? params.sharePwd
+        if (params.shareScope === 'private' && pwd) {
+          body.password = pwd
+        }
+        
+        // 如果设置了有效期，添加有效期参数
+        if (params.expireTime) {
+          body.expireTime = params.expireTime
+        }
+        
         return await createFetch({
           url: '/note/share',
           method: 'post',
-          body: {
-            noteId: params.noteId,
-            accessPermission: params.accessPermission || 'readonly',
-            shareScope: params.shareScope || 'public',
-            privateEmails: params.privateEmails || ''
-          }
+          body: body
         })
       } catch (err) {
         console.log("shareNote:", err)
+        throw err
       }
     },
 
@@ -205,6 +233,20 @@ export const useNotesStore = defineStore('notes', {
         })
       } catch (err) {
         console.log("cancelShareNote:", err)
+      }
+    },
+
+    // 更新分享设置
+    async updateShareNote(noteShareId, params) {
+      try {
+        return await createFetch({
+          url: `/note/share/${noteShareId}`,
+          method: 'put',
+          body: params
+        })
+      } catch (err) {
+        console.log("updateShareNote:", err)
+        throw err
       }
     },
 
@@ -258,7 +300,7 @@ export const useNotesStore = defineStore('notes', {
       }
     },
 
-    // 搜索笔记
+    // 搜索笔记 (全屏搜索对话框用)
     async searchNotes(params) {
       try {
         const res = await createFetch({
@@ -269,6 +311,21 @@ export const useNotesStore = defineStore('notes', {
         return res
       } catch (err) {
         console.log("searchNotes:", err)
+        throw err
+      }
+    },
+
+    // 全局搜索笔记 (导航栏搜索用)
+    async searchAllNotes(params) {
+      try {
+        const res = await createFetch({
+          url: '/note/list',
+          params: params
+        })
+
+        return res
+      } catch (err) {
+        console.log("searchAllNotes:", err)
         throw err
       }
     },

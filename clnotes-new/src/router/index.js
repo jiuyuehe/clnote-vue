@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import Loading from '@/components/Loading.vue'
-import BookNav from '@/components/BookNav.vue'
+import NoteEditor from '@/components/NoteEditor.vue'
 import ShareNav from '@/components/ShareNav.vue'
 
 const routes = [
@@ -17,12 +17,12 @@ const routes = [
   {
     path: '/book/:nbi',
     name: 'Book',
-    component: BookNav
+    component: NoteEditor
   },
   {
     path: '/book/:nbi/note/:noteId',
     name: 'BookNote',
-    component: BookNav
+    component: NoteEditor
   },
   {
     path: '/share',

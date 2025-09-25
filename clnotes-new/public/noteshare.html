@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>分享笔记 - 云笔记</title>
-    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <link rel="stylesheet" href="/src/assets/share.css">
     <style>
         * {
             margin: 0;
@@ -16,6 +16,15 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
             background: #f5f7fa;
             line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #app {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         
         .header {
@@ -38,9 +47,11 @@
         }
         
         .container {
+            width: 100%;
             max-width: 800px;
             margin: 40px auto;
             padding: 0 20px;
+            flex: 1;
         }
         
         .note-card {
@@ -70,6 +81,63 @@
             align-items: center;
             color: #909399;
             font-size: 14px;
+        }
+
+        .note-meta-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .note-meta-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .note-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .small-edit-btn, .small-cancel-btn {
+            padding: 4px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            border: none;
+            cursor: pointer;
+            background: transparent;
+            text-decoration: none;
+        }
+
+        .small-edit-btn {
+            color: #409eff;
+        }
+
+        .small-cancel-btn {
+            color: #f56c6c;
+        }
+
+        .small-edit-btn:hover, .small-cancel-btn:hover {
+            text-decoration: underline;
+            background: transparent;
+        }
+
+        .ce-editor {
+            width: 100%;
+            min-height: 300px;
+            padding: 12px;
+            font-size: 14px;
+            border: 1px solid #eaeef5;
+            border-radius: 6px;
+            background: white;
+            outline: none;
+        }
+
+        .ce-editor:focus {
+            box-shadow: 0 0 0 3px rgba(64,158,255,0.08);
+            border-color: #dbeafe;
         }
         
         .note-author {
@@ -261,9 +329,13 @@
         
         .footer {
             text-align: center;
-            padding: 40px 20px;
+            padding: 15px 20px;
             color: #909399;
             font-size: 14px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         @media (max-width: 768px) {
@@ -290,7 +362,7 @@
     </style>
 </head>
 <body>
-    <div id="app">
+    <div id="app" style="min-height: 100vh; display: flex; flex-direction: column;">
         <div class="header">
             <h1>云笔记</h1>
             <p>分享知识，传递智慧</p>
@@ -330,31 +402,57 @@
             <!-- 笔记内容 -->
             <div v-else-if="note" class="note-card">
                 <div class="note-header">
-                    <h1 class="note-title">{{ note.noteName }}</h1>
+                    <template v-if="!editMode">
+                        <h1 class="note-title">{{ note.noteName }}</h1>
+                    </template>
+                    <template v-else>
+                        <input class="password-input" v-model="editTitle" />
+                    </template>
+
                     <div class="note-meta">
-                        <div class="note-author">
-                            <div class="author-avatar">
-                                {{ getAuthorInitial(note.User?.realName) }}
+                        <div class="note-meta-left">
+                            <div class="note-author">
+                                <div class="author-avatar">
+                                    {{ getAuthorInitial(note.User?.realName) }}
+                                </div>
+                                <span>{{ note.User?.realName || '匿名用户' }}</span>
                             </div>
-                            <span>{{ note.User?.realName || '匿名用户' }}</span>
                         </div>
-                        <div class="note-date">
-                            {{ formatDate(note.updateTime) }}
+                        <div class="note-meta-right">
+                            <div class="note-date">
+                                {{ formatDate(note.updateTime) }}
+                            </div>
+                            <!-- 小尺寸操作按钮，位于右侧 -->
+                            <div class="note-actions">
+                                <button v-if="isEditable && !editMode" class="small-edit-btn" @click="toggleEdit">编辑</button>
+                                <div v-if="isEditable && editMode" style="display:flex; gap:6px; align-items:center;">
+                                    <button class="small-edit-btn" @click="saveEdit" :disabled="isSaving">保存</button>
+                                    <button class="small-cancel-btn" @click="cancelEdit">取消</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="note-content" v-html="note.NoteContent?.noteContentText || '此笔记暂无内容'">
+
+
+                <div class="note-content">
+                    <template v-if="!editMode">
+                        <div v-html="note.NoteContent?.noteContentText || '此笔记暂无内容'"></div>
+                    </template>
+                    <template v-else>
+                        <!-- 使用 contenteditable div 保留 HTML 结构，提供简单的富文本编辑体验 -->
+                        <div ref="ce" class="ce-editor" contenteditable="true" @input="onEditInput"></div>
+                    </template>
                 </div>
             </div>
         </div>
-        
         <div class="footer">
-            <p>Powered by 云笔记 | 分享让知识更有价值</p>
+            <p> 云笔记 | 分享让知识更有价值</p>
         </div>
     </div>
 
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="/vendor/vue.global.js"></script>
+    <script src="/vendor/axios.min.js"></script>
     <script>
         const { createApp } = Vue;
         
@@ -366,38 +464,78 @@
                     error: null,
                     needPassword: false,
                     password: '',
-                    passwordError: ''
+                    passwordError: '',
+                    // 编辑相关
+                    isEditable: false, // share metadata indicates editable permission
+                    editMode: false, // 是否处于编辑状态
+                    editTitle: '',
+                    editContent: '',
+                    isSaving: false
                 };
             },
             mounted() {
                 this.loadNote();
             },
             methods: {
+                // localStorage helpers: cache successful passwords per nsc
+                getCachedPassword(nsc) {
+                    try {
+                        return localStorage.getItem(`note_share_pwd_${nsc}`) || '';
+                    } catch (e) {
+                        return '';
+                    }
+                },
+
+                setCachedPassword(nsc, pwd) {
+                    try {
+                        if (pwd) localStorage.setItem(`note_share_pwd_${nsc}`, pwd);
+                    } catch (e) {
+                        // ignore
+                    }
+                },
+
+                removeCachedPassword(nsc) {
+                    try {
+                        localStorage.removeItem(`note_share_pwd_${nsc}`);
+                    } catch (e) {
+                        // ignore
+                    }
+                },
                 loadNote() {
                     const urlParams = new URLSearchParams(window.location.search);
-                    const shareId = urlParams.get('shareId');
+                    const nsc = urlParams.get('nsc');
                     
-                    if (!shareId) {
+                    if (!nsc) {
                         this.error = '无效的分享链接';
                         this.loading = false;
                         return;
                     }
-                    
-                    this.fetchNote(shareId);
+                    // 如果本地有缓存的密码，先尝试使用缓存密码进行验证
+                    const cached = this.getCachedPassword(nsc);
+                    if (cached) {
+                        this.password = cached;
+                        this.fetchNote(nsc, cached);
+                    } else {
+                        this.fetchNote(nsc);
+                    }
                 },
                 
-                async fetchNote(shareId, password = '') {
+                async fetchNote(nsc, password = '') {
+                    // 开始请求前重置临时 UI 状态，避免残留导致闪烁
                     this.loading = true;
                     this.passwordError = '';
+                    this.needPassword = false;
+                    this.error = null;
+                    this.note = null;
                     
                     try {
-                        const params = { shareId };
+                        // 构建请求URL
+                        let url = `/apps/pub/note/share/simple?nsc=${nsc}`;
                         if (password) {
-                            params.password = password;
+                            url += `&pwd=${encodeURIComponent(password)}`;
                         }
                         
-                        const response = await axios.get('/apps/pub/note/share', {
-                            params,
+                        const response = await axios.get(url, {
                             headers: {
                                 'cv': '3.6.0',
                                 'Accept': 'application/json',
@@ -405,17 +543,49 @@
                             }
                         });
                         
-                        if (response.data.status === 'ok') {
-                            this.note = response.data.data;
-                            this.needPassword = false;
-                            this.error = null;
-                        } else if (response.data.status === 'err_password_required') {
+                        const status = response.data?.status
+                        const data = response.data?.data
+
+                        if (status === 'ok') {
+                            // 检查是否过期
+                            if (data?.isExpired) {
+                                this.error = '分享链接已过期';
+                                this.needPassword = false;
+                                this.note = null;
+                                return;
+                            }
+
+                            // 检查是否需要密码（基础接口返回需密码或第一次未带密码）
+                            if (data?.needPassword && !password) {
+                                this.needPassword = true;
+                                this.note = null;
+                                this.error = null;
+                                return;
+                            }
+
+                            // 基础信息验证通过，设置可编辑权限并获取完整笔记内容
+                            // 后端在 data 中可能包含 accessPermission 字段
+                            this.isEditable = data?.accessPermission === 'editable' || data?.accessPermission === 'write' || false;
+                            await this.fetchNoteContent(nsc, password);
+                        } else if (status === 'err_note_share_pwd') {
+                            // 密码错误：回到密码输入状态，提示错误
+                            this.passwordError = '密码错误，请重新输入';
                             this.needPassword = true;
                             this.note = null;
-                            this.error = null;
-                        } else {
-                            this.error = response.data.msg || '笔记不存在或已被删除';
+                            // 删除本地缓存的无效密码
+                            this.removeCachedPassword(nsc);
+                            return;
+                        } else if (status === 'err_note_share_expired') {
+                            // 分享已过期
+                            this.error ='分享链接已过期';
                             this.needPassword = false;
+                            this.note = null;
+                            return;
+                        } else {
+                            // 其他错误，显示通用信息
+                            this.error = response.data?.msg || '笔记不存在或已被删除';
+                            this.needPassword = false;
+                            this.note = null;
                         }
                     } catch (error) {
                         console.error('加载笔记失败:', error);
@@ -439,8 +609,179 @@
                     }
                     
                     const urlParams = new URLSearchParams(window.location.search);
-                    const shareId = urlParams.get('shareId');
-                    this.fetchNote(shareId, this.password);
+                    const nsc = urlParams.get('nsc');
+                    this.fetchNote(nsc, this.password);
+                },
+                
+                async fetchNoteContent(nsc, password = '') {
+                    try {
+                        // 第二步：获取完整的笔记内容
+                        let url = `/apps/pub/note?nsc=${nsc}`;
+                        if (password) {
+                            url += `&pwd=${encodeURIComponent(password)}`;
+                        }
+
+                        const response = await axios.get(url, {
+                            headers: {
+                                'cv': '3.6.0',
+                                'Accept': 'application/json',
+                                'Content-type': 'application/json;charset=UTF-8'
+                            }
+                        });
+
+                        const status = response.data?.status;
+
+                        if (status === 'ok') {
+                            this.note = response.data.data;
+                            this.needPassword = false;
+                            this.error = null;
+                            this.passwordError = '';
+                            // 验证成功——缓存密码以便刷新/重复访问时不用重复输入
+                            if (password) this.setCachedPassword(nsc, password);
+                            // 将内容填充到编辑缓存
+                            this.editTitle = this.note.noteName || '';
+                            this.editContent = this.note.NoteContent?.noteContentText || '';
+                            // 如果已经在编辑模式（极少情况），同步 contenteditable 的 innerHTML
+                            this.$nextTick(() => {
+                                const el = this.$refs.ce;
+                                if (el && this.editMode) el.innerHTML = this.editContent;
+                            });
+                            // 如果后台未在 metadata 中说明权限，这里也可从返回的对象里读取
+                            if (!this.isEditable) {
+                                this.isEditable = this.note?.accessPermission === 'editable' || this.note?.accessPermission === 'write' || false;
+                            }
+                        } else if (status === 'err_note_share_pwd') {
+                            // 密码错误，保持密码输入框并提示
+                            this.passwordError = '密码错误，请重新输入';
+                            this.needPassword = true;
+                            this.note = null;
+                            // 删除本地缓存的无效密码
+                            this.removeCachedPassword(nsc);
+                            return;
+                        } else if (status === 'err_note_share_expired') {
+                            this.error = '分享链接已过期';
+                            this.needPassword = false;
+                            this.note = null;
+                            return;
+                        } else {
+                            this.error =  '无法获取笔记内容';
+                            this.note = null;
+                            this.needPassword = false;
+                        }
+                    } catch (error) {
+                        console.error('获取笔记内容失败:', error);
+                        // 密码校验失败，切回密码输入状态
+                        if (error.response?.status === 403) {
+                            this.passwordError = '密码错误，请重新输入';
+                            this.needPassword = true;
+                            // 保持 loading 状态由上层控制（fetchNote 的 finally）
+                            return;
+                        } else if (error.response?.status === 404) {
+                            this.error = '笔记不存在或已被删除';
+                        } else {
+                            this.error = '获取笔记内容失败';
+                        }
+                        this.needPassword = false;
+                    }
+                },
+
+                toggleEdit() {
+                    this.editMode = true;
+                    // 进入编辑模式后，把当前内容填回 contenteditable
+                    // 确保 editContent 与 note 内容一致
+                    this.editContent = this.note?.NoteContent?.noteContentText || this.editContent || '';
+                    this.$nextTick(() => {
+                        const el = this.$refs.ce;
+                        if (el) {
+                            el.innerHTML = this.editContent;
+                            // 将光标放到结尾
+                            try {
+                                const range = document.createRange();
+                                range.selectNodeContents(el);
+                                range.collapse(false);
+                                const sel = window.getSelection();
+                                sel.removeAllRanges();
+                                sel.addRange(range);
+                            } catch (e) {
+                                // ignore
+                            }
+                        }
+                    });
+                },
+
+                cancelEdit() {
+                    this.editMode = false;
+                    // 恢复到原始内容
+                    this.editTitle = this.note.noteName || '';
+                    this.editContent = this.note.NoteContent?.noteContentText || '';
+                    // 同步到 contenteditable
+                    this.$nextTick(() => {
+                        const el = this.$refs.ce;
+                        if (el) el.innerHTML = this.editContent;
+                    });
+                },
+
+                async saveEdit() {
+                    if (!this.editMode || !this.isEditable) return;
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const nsc = urlParams.get('nsc');
+                    if (!nsc) {
+                        this.error = '无效的分享链接';
+                        return;
+                    }
+
+                    this.isSaving = true;
+                    try {
+                        // 从 contenteditable 同步 HTML
+                        const ce = this.$refs.ce;
+                        if (ce) this.editContent = ce.innerHTML;
+
+                        const body = {
+                            noteName: this.editTitle,
+                            noteContent: this.editContent
+                        };
+                        // 若有密码，带上以便后端验证
+                        if (this.password) body.password = this.password;
+
+                        const res = await axios.put(`/apps/note/share/${encodeURIComponent(nsc)}`, body, {
+                            headers: {
+                                'cv': '3.6.0',
+                                'Accept': 'application/json',
+                                'Content-type': 'application/json;charset=UTF-8'
+                            }
+                        });
+
+                        if (res.data?.status === 'ok') {
+                            // 保存成功，刷新显示内容
+                            this.note.noteName = this.editTitle;
+                            if (!this.note.NoteContent) this.note.NoteContent = {};
+                            this.note.NoteContent.noteContentText = this.editContent;
+                            this.editMode = false;
+                            this.isSaving = false;
+                            this.error = null;
+                        } else if (res.data?.status === 'err_login_required' || res.status === 403) {
+                            // 需要登录
+                            window.location.href = '/login.html';
+                            return;
+                        } else {
+                            this.error = res.data?.msg || '保存失败';
+                            this.isSaving = false;
+                        }
+                    } catch (err) {
+                        console.error('保存分享编辑失败:', err);
+                        if (err.response?.status === 403) {
+                            // 未登录或无权限，跳转到登录页
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        this.error = '保存失败';
+                        this.isSaving = false;
+                    }
+                },
+
+                onEditInput(e) {
+                    const el = this.$refs.ce;
+                    if (el) this.editContent = el.innerHTML;
                 },
                 
                 getAuthorInitial(name) {

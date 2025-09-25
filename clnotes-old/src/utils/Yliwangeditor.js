@@ -142,7 +142,7 @@ class Yliwangeditor extends Component {
 
                     // 举例：假如上传图片成功后，服务器端返回的是 {url:'....'} 这种格式，即可这样插入图片：
                     // let url =  window.location.protocol + '://' + window.location.host + ':' + window.location.port +"/"+result.fsFileName;
-                    let url = 'http://192.168.0.29/' + result.fsFileName;
+                    let url = window.location.origin + '/' + result.fsFileName;
 
                     insertImg(url)
 

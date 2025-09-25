@@ -68,22 +68,46 @@
               <el-icon><Lock /></el-icon>
               <div>
                 <div class="scope-title">私密</div>
-                <div class="scope-desc">只有您指定的人可以访问</div>
+                <div class="scope-desc">需要输入访问密码才能查看</div>
               </div>
             </div>
           </el-radio>
         </el-radio-group>
       </div>
 
-      <!-- 私密分享时的用户输入 -->
+      <!-- 私密分享时的密码输入 -->
       <div v-if="shareForm.shareScope === 'private'" class="form-item">
-        <label class="form-label">指定用户（邮箱）</label>
+        <label class="form-label">访问密码</label>
         <el-input
-          v-model="shareForm.privateEmails"
-          type="textarea"
-          :rows="3"
-          placeholder="请输入用户邮箱，多个邮箱用逗号分隔"
+          v-model="shareForm.sharePwd"
+          type="password"
+          placeholder="请设置访问密码（4-20位）"
+          maxlength="20"
+          show-password
         />
+        <div class="form-tip">密码长度为4-20位，建议使用数字和字母组合</div>
+      </div>
+
+      <!-- 有效期设置 -->
+      <div class="form-item">
+        <label class="form-label">有效期</label>
+        <el-radio-group v-model="shareForm.expireType" class="expire-group">
+          <el-radio value="permanent">永久有效</el-radio>
+          <el-radio value="custom">自定义时间</el-radio>
+        </el-radio-group>
+        
+        <div v-if="shareForm.expireType === 'custom'" class="expire-date-section">
+          <el-date-picker
+            v-model="shareForm.expireTime"
+            type="date"
+            placeholder="选择过期日期"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            :disabled-date="disabledDate"
+            style="width: 100%; margin-top: 8px;"
+          />
+          <div class="form-tip">分享链接将在选定日期的 23:59:59 过期</div>
+        </div>
       </div>
 
       <!-- 分享链接结果 -->
@@ -102,6 +126,11 @@
         </el-input>
         <div class="share-info">
           <p><strong>分享码:</strong> {{ shareResult.noteShareCode }}</p>
+          <p><strong>访问权限:</strong> {{ shareForm.accessPermission === 'readonly' ? '只读' : '可编辑' }}</p>
+          <p><strong>分享范围:</strong> {{ shareForm.shareScope === 'public' ? '公开' : '私密' }}</p>
+          <p v-if="shareForm.shareScope === 'private'"><strong>访问密码:</strong> {{ shareForm.sharePwd }}</p>
+          <p v-if="shareForm.expireType === 'custom'"><strong>过期时间:</strong> {{ shareForm.expireTime }}</p>
+          <p v-else><strong>有效期:</strong> 永久有效</p>
           <p><strong>创建时间:</strong> {{ formatDate(shareResult.createTime) }}</p>
         </div>
       </div>
@@ -156,7 +185,9 @@ const shareForm = ref({
   noteId: null,
   accessPermission: 'readonly',
   shareScope: 'public',
-  privateEmails: ''
+  sharePwd: '',
+  expireType: 'permanent',
+  expireTime: ''
 })
 
 const shareResult = ref(null)
@@ -169,7 +200,9 @@ const resetForm = () => {
     noteId: props.noteId || null,
     accessPermission: 'readonly',
     shareScope: 'public',
-    privateEmails: ''
+    sharePwd: '',
+    expireType: 'permanent',
+    expireTime: ''
   }
   shareResult.value = null
 }
@@ -180,9 +213,24 @@ const handleShare = async () => {
     return
   }
 
-  if (shareForm.value.shareScope === 'private' && !shareForm.value.privateEmails.trim()) {
-    ElMessage.error('私密分享需要指定用户邮箱')
-    return
+  // 验证私密分享（密码保护）
+  if (shareForm.value.shareScope === 'private') {
+    if (!shareForm.value.sharePwd.trim()) {
+      ElMessage.error('私密分享需要设置访问密码')
+      return
+    }
+    if (shareForm.value.sharePwd.length < 4 || shareForm.value.sharePwd.length > 20) {
+      ElMessage.error('访问密码长度应为4-20位')
+      return
+    }
+  }
+
+  // 验证有效期
+  if (shareForm.value.expireType === 'custom') {
+    if (!shareForm.value.expireTime) {
+      ElMessage.error('请选择过期日期')
+      return
+    }
   }
 
   isSharing.value = true
@@ -194,8 +242,14 @@ const handleShare = async () => {
       shareScope: shareForm.value.shareScope
     }
     
+    // 添加私密分享密码参数
     if (shareForm.value.shareScope === 'private') {
-      params.privateEmails = shareForm.value.privateEmails
+      params.password = shareForm.value.sharePwd
+    }
+
+    // 添加有效期参数
+    if (shareForm.value.expireType === 'custom') {
+      params.expireTime = shareForm.value.expireTime
     }
 
     const res = await notesStore.shareNote(params)
@@ -203,7 +257,7 @@ const handleShare = async () => {
     if (res && res.data) {
       shareResult.value = {
         ...res.data,
-        shareUrl: `${window.location.origin}/#/share?code=${res.data.noteShareCode}`
+        shareUrl: `${window.location.origin}/noteshare.html?nsc=${res.data.noteShareCode}`
       }
       
       ElMessage.success('分享创建成功')
@@ -217,6 +271,13 @@ const handleShare = async () => {
   } finally {
     isSharing.value = false
   }
+}
+
+// 限制日期选择（只能选择今天及以后的日期）
+const disabledDate = (time) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return time.getTime() < today.getTime()
 }
 
 const copyShareUrl = async () => {
@@ -271,16 +332,21 @@ watch(() => props.noteId, (newNoteId) => {
 .permission-group,
 .scope-group {
   width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .permission-option,
 .scope-option {
   width: 100%;
+  height: 54px;
   margin-bottom: 12px;
   border: 1px solid #dcdfe6;
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
   transition: all 0.3s;
+  box-sizing: border-box;
+  margin-right: 0 !important;
 }
 
 .permission-option:hover,
@@ -300,19 +366,39 @@ watch(() => props.noteId, (newNoteId) => {
   display: flex;
   align-items: center;
   gap: 12px;
+  height: 100%;
 }
 
 .permission-title,
 .scope-title {
   font-weight: 600;
   color: #303133;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  font-size: 14px;
+  line-height: 1.2;
 }
 
 .permission-desc,
 .scope-desc {
   font-size: 12px;
   color: #909399;
+  line-height: 1.3;
+  word-break: break-all;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.expire-group {
+  margin-bottom: 12px;
+}
+
+.expire-date-section {
+  margin-top: 8px;
 }
 
 .share-result {

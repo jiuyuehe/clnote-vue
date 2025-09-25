@@ -1,5 +1,6 @@
 import axios from 'axios'
 import Cookies from 'js-cookie'
+import { getFixedCt } from './auth'
 import { ElMessage } from 'element-plus'
 
 const URL_PREFIX = import.meta.env.DEV ? '/apps/' : '/apps/'
@@ -16,9 +17,7 @@ function createQuery(method, body) {
   const config = {
     method: method,
     headers: {
-      ct: import.meta.env.DEV
-        ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjk5LCJ0aW1lIjoxNzU3NDExMTE5LCJrZXkiOiIxMjM0NTY3NC4yIiwiaXAiOiIxNzIuMjEuMC4xIiwiZGV2aWNlIjoid2ViIiwiaWF0IjoxNzU3NDExMTE5fQ.iJT3ZUCY50uvHDGHGRCcx5v16mpou94WOpTpA9Eb8l8'
-        : Cookies.get('ct'),
+      ct: getFixedCt(),
       'cv': '3.5.0',
       'Accept': 'application/json',
       'Content-type': 'application/json;charset=UTF-8',

@@ -18,6 +18,10 @@
             <el-table-column prop="shareUrl" label="分享链接" min-width="300">
               <template #default="scope">
                 <div style="display:flex; align-items:center; gap:8px;">
+                  <!-- 根据 shareScope 显示图标：private -> 🔒, public -> 🌐 -->
+                  <span class="share-icon" :title="scope.row.password ? '私密分享' : '公开分享'">
+                    {{ scope.row.password ? '🔒' : '🌐' }}
+                  </span>
                   <span class="share-url">{{ getShareUrl(scope.row.noteShareCode) }}</span>
                   <el-button size="small" type="text" @click="copyShareUrl(scope.row.noteShareCode)">复制</el-button>
                 </div>
@@ -55,9 +59,9 @@
             <div class="share-form">
               <div class="form-item">
                 <label>访问权限</label>
-                <el-radio-group v-model="editForm.accessPermission">
-                  <el-radio label="readonly">只读</el-radio>
-                  <el-radio label="editable">可编辑</el-radio>
+                <el-radio-group v-model="editForm.noteSharePerm">
+                  <el-radio label="read">只读</el-radio>
+                  <el-radio label="read_write">可编辑</el-radio>
                 </el-radio-group>
               </div>
 
@@ -170,7 +174,7 @@ onMounted(() => {
 const editDialogVisible = ref(false)
 const editForm = reactive({
   noteShareId: null,
-  accessPermission: 'readonly',
+  noteSharePerm: 'read',
   shareScope: 'public',
   sharePwd: '',
   expireType: 'permanent',
@@ -179,7 +183,7 @@ const editForm = reactive({
 
 const openEdit = (row) => {
   editForm.noteShareId = row.noteShareId
-  editForm.accessPermission = row.accessPermission || 'readonly'
+  editForm.noteSharePerm = row.noteSharePerm || 'read'
   editForm.shareScope = row.shareScope || 'public'
   editForm.sharePwd = row.sharePwd || ''
   editForm.expireType = row.expireTime ? 'custom' : 'permanent'
@@ -191,7 +195,7 @@ const submitEdit = async () => {
   if (!editForm.noteShareId) return
   try {
     const params = {
-      accessPermission: editForm.accessPermission,
+      noteSharePerm: editForm.noteSharePerm,
       shareScope: editForm.shareScope
     }
     if (editForm.shareScope === 'private') {
@@ -262,5 +266,14 @@ h2 {
   color: #409eff;
   word-break: break-all;
   font-size: 13px;
+}
+
+.share-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 14px;
 }
 </style>

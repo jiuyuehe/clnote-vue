@@ -695,14 +695,37 @@ onMounted(() => {
       loadNotesForNotebook(toNotebookId)
     }
   }
+
+  // 监听笔记更新事件（标题或内容变更）
+  const handleNoteUpdated = (event) => {
+    const { noteId, noteName } = event.detail || {}
+    if (!noteId) return
+
+    // 在已加载的笔记缓存中查找并更新标题
+    Object.keys(notesByNotebook.value).forEach(nbId => {
+      const arr = notesByNotebook.value[nbId]
+      if (!Array.isArray(arr)) return
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i].noteId == noteId) {
+          // 更新标题并触发响应式更新
+          arr[i].noteName = noteName || arr[i].noteName
+          // 如果当前笔记本展开，重新加载确保数据一致（可选）
+          // loadNotesForNotebook(parseInt(nbId))
+          break
+        }
+      }
+    })
+  }
   
   window.addEventListener('noteDeleted', handleNoteDeleted)
   window.addEventListener('noteMoved', handleNoteMoved)
+  window.addEventListener('noteUpdatedExternally', handleNoteUpdated)
   
   // 在组件销毁时清理事件监听器
   onBeforeUnmount(() => {
     window.removeEventListener('noteDeleted', handleNoteDeleted)
     window.removeEventListener('noteMoved', handleNoteMoved)
+  window.removeEventListener('noteUpdatedExternally', handleNoteUpdated)
   })
 })
 

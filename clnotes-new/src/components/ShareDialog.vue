@@ -28,8 +28,8 @@
       <!-- 访问权限 -->
       <div class="form-item">
         <label class="form-label">访问权限</label>
-        <el-radio-group v-model="shareForm.accessPermission" class="permission-group">
-          <el-radio value="readonly" class="permission-option">
+        <el-radio-group v-model="shareForm.noteSharePerm" class="permission-group">
+          <el-radio value="read" class="permission-option">
             <div class="permission-content">
               <el-icon><View /></el-icon>
               <div>
@@ -38,7 +38,7 @@
               </div>
             </div>
           </el-radio>
-          <el-radio value="editable" class="permission-option">
+          <el-radio value="read_write" class="permission-option">
             <div class="permission-content">
               <el-icon><Edit /></el-icon>
               <div>
@@ -126,7 +126,7 @@
         </el-input>
         <div class="share-info">
           <p><strong>分享码:</strong> {{ shareResult.noteShareCode }}</p>
-          <p><strong>访问权限:</strong> {{ shareForm.accessPermission === 'readonly' ? '只读' : '可编辑' }}</p>
+          <p><strong>访问权限:</strong> {{ shareForm.noteSharePerm === 'read' ? '只读' : '可编辑' }}</p>
           <p><strong>分享范围:</strong> {{ shareForm.shareScope === 'public' ? '公开' : '私密' }}</p>
           <p v-if="shareForm.shareScope === 'private'"><strong>访问密码:</strong> {{ shareForm.sharePwd }}</p>
           <p v-if="shareForm.expireType === 'custom'"><strong>过期时间:</strong> {{ shareForm.expireTime }}</p>
@@ -183,7 +183,7 @@ const visible = computed({
 
 const shareForm = ref({
   noteId: null,
-  accessPermission: 'readonly',
+  noteSharePerm: 'read',
   shareScope: 'public',
   sharePwd: '',
   expireType: 'permanent',
@@ -198,7 +198,7 @@ const availableNotes = computed(() => notesStore.noteList)
 const resetForm = () => {
   shareForm.value = {
     noteId: props.noteId || null,
-    accessPermission: 'readonly',
+    noteSharePerm: 'read',
     shareScope: 'public',
     sharePwd: '',
     expireType: 'permanent',
@@ -238,7 +238,7 @@ const handleShare = async () => {
   try {
     const params = {
       noteId: shareForm.value.noteId,
-      accessPermission: shareForm.value.accessPermission,
+      noteSharePerm: shareForm.value.noteSharePerm,
       shareScope: shareForm.value.shareScope
     }
     

@@ -5,8 +5,9 @@
       <div class="note-header">
         <div class="title-section">
           <el-input
-            v-model="selectedNote.noteName"
+            v-model="title"
             class="note-title-input"
+            @input="onTitleInput"
             @blur="updateNoteTitle"
             @keyup.enter="updateNoteTitle"
             placeholder="未命名笔记"
@@ -25,19 +26,19 @@
           <el-button 
             type="success"
             size="small" 
-            :icon="autoSaveStatus === 'saved' && !hasContentChanged ? Check : Loading"
+            :icon="autoSaveStatus === 'saved' && !hasContentChanged && !hasTitleChanged ? Check : Loading"
             class="toolbar-btn auto-save-btn"
-            :disabled="autoSaveStatus === 'saving' || (!hasContentChanged && autoSaveStatus === 'saved')"
+            :disabled="autoSaveStatus === 'saving' || (!hasContentChanged && !hasTitleChanged && autoSaveStatus === 'saved')"
             :class="{
               'is-saving': autoSaveStatus === 'saving',
-              'is-saved': autoSaveStatus === 'saved' && !hasContentChanged,
-              'is-unsaved': autoSaveStatus === 'unsaved' || hasContentChanged
+              'is-saved': autoSaveStatus === 'saved' && !hasContentChanged && !hasTitleChanged,
+              'is-unsaved': autoSaveStatus === 'unsaved' || hasContentChanged || hasTitleChanged
             }"
             @click="manualSave"
           >
             {{ 
               autoSaveStatus === 'saving' ? '保存中...' : 
-              (autoSaveStatus === 'saved' && !hasContentChanged) ? '已保存' : 
+              (autoSaveStatus === 'saved' && !hasContentChanged && !hasTitleChanged) ? '已保存' : 
               '未保存' 
             }}
           </el-button>
@@ -143,11 +144,13 @@ let autoSaveTimer = null
 
 const selectedNote = computed(() => notesStore.noteDetail)
 
-// 计算笔记内容
 const noteContent = ref('')
 const originalContent = ref('') // 用于跟踪原始内容
 const originalTitle = ref('') // 用于跟踪原始标题
 const hasContentChanged = ref(false) // 标记内容是否已改变
+const hasTitleChanged = ref(false) // 标记标题是否已改变
+// 局部标题字段，避免直接在模板对计算属性进行 v-model
+const title = ref('')
 
 // 监听选中笔记的变化，更新编辑器内容
 watch(
@@ -155,19 +158,31 @@ watch(
   (newNote) => {
     if (newNote && newNote.NoteContent) {
       const content = newNote.NoteContent.noteContentText || ''
-      const title = newNote.noteName || ''
+      const theTitle = newNote.noteName || ''
       noteContent.value = content
       originalContent.value = content // 保存原始内容
-      originalTitle.value = title // 保存原始标题
+      originalTitle.value = theTitle // 保存原始标题
+      title.value = theTitle
       hasContentChanged.value = false // 重置改变标记
+      hasTitleChanged.value = false
     } else {
       noteContent.value = ''
       originalContent.value = ''
       originalTitle.value = ''
       hasContentChanged.value = false
+      hasTitleChanged.value = false
     }
   },
   { immediate: true, deep: true }
+)
+
+// 监听标题字段的变化，标记标题是否被修改
+watch(
+  () => selectedNote.value?.noteName,
+  (newTitle) => {
+    if (typeof newTitle === 'undefined' || newTitle === null) return
+    hasTitleChanged.value = newTitle !== originalTitle.value
+  }
 )
 
 // 自动保存状态
@@ -182,25 +197,52 @@ const availableNotebooks = computed(() => notesStore.notebooks)
 const updateNoteTitle = async () => {
   if (selectedNote.value) {
     // 检查标题是否真的发生了变化
-    if (selectedNote.value.noteName === originalTitle.value) {
+  if (title.value === originalTitle.value) {
       console.log('标题未改变，无需保存')
       return
     }
-    
+
     try {
       const p = {
         noteId: selectedNote.value.noteId,
-        noteName: selectedNote.value.noteName
+    noteName: title.value
       }
-      
+
       await notesStore.createNote(p, 'update')
-      notesStore.updateNoteList(p)
-      originalTitle.value = selectedNote.value.noteName // 更新原始标题
-      ElMessage.success('标题已保存')
+      // 更新本地列表与缓存
+      try { notesStore.updateNoteList(p) } catch (e) {}
+      // 确保侧栏数据刷新（部分实现需要重新拉取）
+      try { await notesStore.getNotesByBook({ nbi: currentNotebookId.value }) } catch (e) {}
+
+      // 更新原始标题并清理标记
+      originalTitle.value = title.value
+      hasTitleChanged.value = false
+
+      // 更新 store 中的 noteDetail，保持和 performSave 一致
+      try {
+        const updatedDetail = Object.assign({}, selectedNote.value)
+        updatedDetail.noteName = title.value
+        notesStore.setNoteDetail(updatedDetail)
+      } catch (e) {}
+
+      // Dispatch event so Nav updates cached lists
+      try {
+        window.dispatchEvent(new CustomEvent('noteUpdatedExternally', {
+          detail: { noteId: p.noteId, noteName: p.noteName }
+        }))
+      } catch (e) {}
     } catch (err) {
       console.error('更新笔记标题失败:', err)
-      ElMessage.error('保存标题失败')
     }
+  }
+}
+
+// 标题输入处理，立即标记为已修改（使用本地 title）
+const onTitleInput = (val) => {
+  try {
+    hasTitleChanged.value = title.value !== originalTitle.value
+  } catch (e) {
+    hasTitleChanged.value = false
   }
 }
 
@@ -231,53 +273,89 @@ const handleTextChange = (newContent) => {
   }, 3000) // 3秒后自动保存
 }
 
-// 手动保存
+// 手动保存（支持标题变更或内容变更）
 const manualSave = async () => {
-  // 只有在内容真正改变时才保存
-  if (hasContentChanged.value) {
+  // 在内容或标题发生变化时保存
+  if (hasContentChanged.value || hasTitleChanged.value) {
     await performSave()
   } else {
-    console.log('内容未改变，无需保存')
+    console.log('内容或标题未改变，无需保存')
   }
 }
 
 // 执行保存操作
 const performSave = async () => {
-  if (!selectedNote.value || !hasContentChanged.value) {
-    console.log('无需保存：笔记不存在或内容未改变')
+  if (!selectedNote.value || (!hasContentChanged.value && !hasTitleChanged.value)) {
+    console.log('无需保存：笔记不存在或内容/标题未改变')
     return
   }
-  
+
   autoSaveStatus.value = 'saving'
-  
+
   try {
+    // 构建保存参数，支持仅标题变更或同时变更内容
+    const noteContentToSave = hasContentChanged.value ? noteContent.value : (selectedNote.value.NoteContent?.noteContentText || '')
+
     // 获取文本摘要（前100个字符）
     const tempDiv = document.createElement('div')
-    tempDiv.innerHTML = noteContent.value
+    tempDiv.innerHTML = noteContentToSave
     const textContent = tempDiv.textContent || tempDiv.innerText || ''
     const noteSummary = textContent.substring(0, 100)
-    
+
     const p = {
       noteId: selectedNote.value.noteId,
-      noteName: selectedNote.value.noteName,
-      noteContent: noteContent.value,
+      noteName: title.value,
+      noteContent: noteContentToSave,
       noteSummary: noteSummary
     }
-    
+
     const res = await notesStore.createNote(p, 'update')
-    
+
     if (res) {
       autoSaveStatus.value = 'saved'
-      hasContentChanged.value = false // 重置改变标记
-      originalContent.value = noteContent.value // 更新原始内容
-      console.log('保存成功')
-      
-      // 更新store中的noteDetail
-      if (selectedNote.value.NoteContent) {
-        selectedNote.value.NoteContent.noteContentText = noteContent.value
-        selectedNote.value.NoteContent.noteContentSummary = noteSummary
+
+      // 如果保存了内容，则更新对应标记和缓存
+      if (hasContentChanged.value) {
+        hasContentChanged.value = false
+        originalContent.value = noteContentToSave
+        if (selectedNote.value.NoteContent) {
+          selectedNote.value.NoteContent.noteContentText = noteContentToSave
+          selectedNote.value.NoteContent.noteContentSummary = noteSummary
+        }
       }
-      
+
+      // 如果保存了标题，则更新原始标题标记
+      if (hasTitleChanged.value) {
+        originalTitle.value = selectedNote.value.noteName
+        hasTitleChanged.value = false
+      }
+
+  // 更新左侧列表（快速更新）并确保刷新笔记列表
+  try { notesStore.updateNoteList({ noteId: p.noteId, noteName: p.noteName }) } catch (e) {}
+      try { await notesStore.getNotesByBook({ nbi: currentNotebookId.value }) } catch (e) {}
+
+      console.log('保存成功')
+
+      // 更新 store 中的 noteDetail 以保持数据一致
+      try {
+  const updatedDetail = Object.assign({}, selectedNote.value)
+        if (hasContentChanged.value) {
+          if (!updatedDetail.NoteContent) updatedDetail.NoteContent = {}
+          updatedDetail.NoteContent.noteContentText = noteContentToSave
+          updatedDetail.NoteContent.noteContentSummary = noteSummary
+        }
+  // 更新标题
+  updatedDetail.noteName = title.value
+        notesStore.setNoteDetail(updatedDetail)
+      } catch (e) {}
+
+      // Dispatch a window event so Nav/Sidebar can refresh immediately
+      try {
+        window.dispatchEvent(new CustomEvent('noteUpdatedExternally', {
+          detail: { noteId: p.noteId, noteName: p.noteName }
+        }))
+      } catch (e) {}
+
       // 2秒后恢复到普通状态
       setTimeout(() => {
         if (autoSaveStatus.value === 'saved') {
@@ -288,7 +366,7 @@ const performSave = async () => {
       autoSaveStatus.value = 'unsaved'
       ElMessage.error('保存失败')
     }
-    
+
   } catch (err) {
     console.error('保存失败:', err)
     autoSaveStatus.value = 'unsaved'
@@ -306,16 +384,81 @@ onMounted(() => {
   }
   
   document.addEventListener('keydown', handleKeydown)
-  
+
+  // 订阅 BroadcastChannel（现代浏览器）
+  let bc = null
+  try {
+    if (window.BroadcastChannel) {
+      bc = new BroadcastChannel('clnote-updates')
+      bc.onmessage = (ev) => {
+        handleExternalUpdate(ev.data)
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // 退回兼容方案：监听 localStorage 的 storage 事件
+  const storageHandler = (ev) => {
+    if (ev.key === 'clnote:note-updated' && ev.newValue) {
+      handleExternalUpdate(ev.newValue)
+    }
+  }
+  window.addEventListener('storage', storageHandler)
+
   // 清理事件监听器
   onBeforeUnmount(() => {
     document.removeEventListener('keydown', handleKeydown)
+    try {
+      if (bc) bc.close()
+    } catch (e) {}
+    window.removeEventListener('storage', storageHandler)
   })
 })
 
 // 处理图片上传
 const handleImageUpdate = (fileName) => {
   console.log('图片上传成功:', fileName)
+}
+
+// 处理来自其他窗口/标签页的外部更新（通过 BroadcastChannel 或 localStorage 触发）
+const handleExternalUpdate = (payload) => {
+  if (!payload) return
+  let data = payload
+  if (typeof payload === 'string') {
+    try {
+      data = JSON.parse(payload)
+    } catch (e) {
+      return
+    }
+  }
+
+  const nid = data.noteId
+  if (!nid) return
+
+  // 更新左侧笔记列表的标题
+  try {
+    notesStore.updateNoteList({ noteId: nid, noteName: data.noteName })
+  } catch (e) {
+    // ignore
+  }
+
+  // 如果当前打开的笔记就是被修改的笔记，更新详情和编辑器内容
+  if (selectedNote.value && selectedNote.value.noteId == nid) {
+    const updated = Object.assign({}, selectedNote.value)
+    if (data.noteName) updated.noteName = data.noteName
+    if (!updated.NoteContent) updated.NoteContent = {}
+    if (data.noteContent) updated.NoteContent.noteContentText = data.noteContent
+    // 更新 store 中的 noteDetail
+    notesStore.setNoteDetail(updated)
+
+    // 同步到编辑器 UI
+  noteContent.value = updated.NoteContent.noteContentText || ''
+    originalContent.value = noteContent.value
+    originalTitle.value = updated.noteName || ''
+    hasContentChanged.value = false
+  try { ElMessage.info('笔记已在其他窗口更新，内容已同步') } catch (e) {}
+  }
 }
 
 const showShareDialog = async () => {

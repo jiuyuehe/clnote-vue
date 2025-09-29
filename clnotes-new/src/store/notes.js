@@ -198,7 +198,7 @@ export const useNotesStore = defineStore('notes', {
       try {
         const body = {
           noteId: params.noteId,
-          accessPermission: params.accessPermission || 'readonly',
+          noteSharePerm: params.noteSharePerm || 'read',
           shareScope: params.shareScope || 'public'
         }
         
